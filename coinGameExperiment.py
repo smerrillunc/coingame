@@ -13,7 +13,25 @@ import numpy as np
 from sklearn.utils import shuffle
 import torch.optim as optim
 
-from coingame.population import Population
+from population import Population
+
+import math
+import random
+import matplotlib
+import matplotlib.pyplot as plt
+from itertools import count
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import pandas as pd
+import numpy as np
+from sklearn.utils import shuffle
+import torch.optim as optim
+
+from population import Population
+
 
 class CoinGameExperiment():
   """
@@ -31,7 +49,7 @@ class CoinGameExperiment():
     policy_init_options: Initial policy distribution for players
   """
 
-  def __init__(self, env, env_options, population_options, player, player_options, player_models, player_model_params, device):
+  def __init__(self, env, env_options, population_options, player, player_options, player_models, player_model_params, device, save_name='ppo.csv'):
     # setup the environment according to options passed    
     self.env = env(**env_options)
 
@@ -48,6 +66,7 @@ class CoinGameExperiment():
                                  d=self.d)
 
     self.device = device
+    self.save_name = save_name
     pass
 
   ###############################
@@ -228,6 +247,7 @@ class CoinGameExperiment():
       # play all the games in player_pairings and record reward
       tmp = self.play_paired_games(self.env, player_pairs, self.population.players, timesteps, self.device)
       df = pd.concat([df, tmp])
+      df = df.to_csv(self.save_name)
 
 
     return df, self.population.players, self.population.players_df

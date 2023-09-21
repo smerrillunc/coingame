@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from sklearn.utils import shuffle
 import torch.optim as optim
-from coingame.memoryBuffers import ReplayBuffer, Buffer
+from memoryBuffers import ReplayBuffer, Buffer
 import torch.nn.functional as F
 import torch
 
