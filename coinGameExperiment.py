@@ -1,3 +1,20 @@
+import math
+import random
+import matplotlib
+import matplotlib.pyplot as plt
+from itertools import count
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import pandas as pd
+import numpy as np
+from sklearn.utils import shuffle
+import torch.optim as optim
+
+from coingame.population import Population
+
 class CoinGameExperiment():
   """
   Description:  A class to perform the experiments of interest on the CoinGame.  This class
@@ -14,7 +31,7 @@ class CoinGameExperiment():
     policy_init_options: Initial policy distribution for players
   """
 
-  def __init__(self, env, env_options, population_options, player, player_options, player_models, player_model_params):
+  def __init__(self, env, env_options, population_options, player, player_options, player_models, player_model_params, device):
     # setup the environment according to options passed    
     self.env = env(**env_options)
 
@@ -30,13 +47,14 @@ class CoinGameExperiment():
                                  N=self.N,
                                  d=self.d)
 
+    self.device = device
     pass
 
   ###############################
   ###### GAME PLAY METHODS ######
   ###############################
   @staticmethod
-  def play_game(env, players, timesteps):
+  def play_game(env, players, timesteps, device='cpu'):
     """
     Description:  This function will play a single game between players in array
     some starting state.  The resulting networks of the players will be updated in place.
@@ -141,7 +159,7 @@ class CoinGameExperiment():
 
 
   @staticmethod
-  def play_paired_games(env, player_pairs, players, timesteps):
+  def play_paired_games(env, player_pairs, players, timesteps, device='cpu'):
     """
     Description:  This function will play all of the games in the player_pairs
     matrix and record episodic rewards
@@ -170,7 +188,7 @@ class CoinGameExperiment():
         # location, then 10 players will play in this match.
         player_pair = players[player_pairs[x, y].astype(int)]
         # play the game between these players append rewards
-        env, player_pair, tmp = CoinGameExperiment.play_game(env, player_pair, timesteps)
+        env, player_pair, tmp = CoinGameExperiment.play_game(env, player_pair, timesteps, device)
         df = pd.concat([df, tmp])
     return df
 
@@ -208,11 +226,11 @@ class CoinGameExperiment():
       player_pairs = self.population.population_migration(player_pairs, count//2)
 
       # play all the games in player_pairings and record reward
-      tmp = self.play_paired_games(self.env, player_pairs, self.population.players, timesteps)
+      tmp = self.play_paired_games(self.env, player_pairs, self.population.players, timesteps, self.device)
       df = pd.concat([df, tmp])
 
 
-    return df, players, players_df
+    return df, self.population.players, self.population.players_df
 
 
   ###############################

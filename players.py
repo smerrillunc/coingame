@@ -6,7 +6,10 @@ from itertools import count
 import pandas as pd
 import numpy as np
 from sklearn.utils import shuffle
-
+import torch.optim as optim
+from coingame.memoryBuffers import ReplayBuffer, Buffer
+import torch.nn.functional as F
+import torch
 
 class Player():
   """
@@ -21,7 +24,7 @@ class Player():
   This class will also provide a way to update player policies.
   """
 
-  def __init__(self, color, population, device=device, player_id=None):
+  def __init__(self, color, population, device="cpu", player_id=None):
 
     # generate random player id if not passed
     if player_id == None:
@@ -57,7 +60,6 @@ class DQNPlayer(Player):
       self.act_dim = act_dim
       self.act_limit = act_limit  
 
-      self.device = device
       self.network=network
       self.steps = steps
       self.gamma = gamma
@@ -207,8 +209,6 @@ class PPOPlayer(Player):
       self.vf_losses = vf_losses
       self.kls = kls
       
-      self.device=device
-
       # Main network
       self.policy = actor_model(**actor_model_params).to(self.device)
       self.vf = critic_model(self.obs_dim, 1, activation=torch.tanh).to(self.device)

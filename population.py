@@ -1,4 +1,3 @@
-
 import math
 import random
 from collections import namedtuple, deque
@@ -6,6 +5,7 @@ from itertools import count
 import pandas as pd
 import numpy as np
 from sklearn.utils import shuffle
+import torch.optim as optim
 
 
 class Population():
@@ -184,5 +184,3 @@ class Population():
       # note copy is pass by value so done in place, but here we return the
       # array anyway.
       return player_pairs
-
-
