@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from collections import namedtuple, deque
-
+import torch
 
 class ReplayBuffer(object):
     """
