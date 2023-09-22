@@ -282,7 +282,7 @@ class CoinGameExperiment():
       df = pd.concat([df, tmp])
       df.to_csv(f'{self.save_path}/{self.save_name}')
       end = datetime.now()
-      total_time = start-end
+      total_time = end-start
       time_per_game = total_time / (self.N/2)
       time_per_timestep = time_per_game / timesteps
       print(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
