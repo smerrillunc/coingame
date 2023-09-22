@@ -58,10 +58,6 @@ class MLP(nn.Module):
         return x
 
 
-
-"""
-VPG actor, TRPO actor, PPO actor
-"""
 class GaussianPolicy(MLP):
     def __init__(self, 
                  input_size, 
@@ -94,3 +90,113 @@ class GaussianPolicy(MLP):
         mu = mu * self.output_limit
         pi = pi * self.output_limit
         return mu, std, pi, log_pi
+
+
+class UniformPolicy(MLP):
+    def __init__(self, 
+                 input_size, 
+                 output_size, 
+                 output_limit=1.0,
+                 hidden_sizes=(64,64),
+                 activation=torch.tanh,
+    ):
+        super(UniformPolicy, self).__init__(
+            input_size=input_size,
+            output_size=output_size,
+            hidden_sizes=hidden_sizes,
+            activation=activation,
+        )
+
+        self.output_limit = output_limit
+
+    def forward(self, x, pi=None, use_pi=True):
+        high = super(UniformPolicy, self).forward(x)
+        
+        # ensure high >= low
+        high = torch.max(torch.tensor([0.001]), high)
+
+        low = torch.zeros(self.output_size)
+
+        dist = torch.distributions.uniform.Uniform(low, high)
+
+        if use_pi:
+            pi = dist.sample()
+        log_pi = dist.log_prob(pi).sum(dim=-1)
+
+        # Make sure outputs are in correct range
+        high = high * self.output_limit
+
+        # maintain consistent format as GuassianPolicy
+        return high, _, pi, log_pi
+
+
+class BetaPolicy(MLP):
+    def __init__(self, 
+                 input_size, 
+                 output_size,                 
+                 output_limit=1.0,
+                 hidden_sizes=(64,64),
+                 activation=torch.tanh,
+    ):
+        super(BetaPolicy, self).__init__(
+            input_size=input_size,
+            output_size=output_size*2,
+            hidden_sizes=hidden_sizes,
+            activation=activation,
+        )
+
+        self.output_limit = output_limit
+
+    def forward(self, x, pi=None, use_pi=True):
+        mlp_preds = super(BetaPolicy, self).forward(x)
+
+        # first (output_size) params predict concentration 1 of beta
+        # second (output size) params predict concentration 2 of beta
+        concentration1 = mlp_preds[0:output_size]
+        concentration0 = mlp_preds[output_size:]
+
+        dist = torch.distributions.beta.Beta(concentration1, concentration0)
+
+        if use_pi:
+            pi = dist.sample()
+        log_pi = dist.log_prob(pi).sum(dim=-1)
+
+        # Make sure outputs are in correct range
+        concentration1 = concentration1 * self.output_limit
+        concentration0 = concentration0 * self.output_limit
+
+        # maintain consistent format as GuassianPolicy
+        return concentration1, concentration0, pi, log_pi
+
+
+class DirichletPolicy(MLP):
+    def __init__(self, 
+                 input_size, 
+                 output_size,                 
+                 output_limit=1.0,
+                 hidden_sizes=(64,64),
+                 activation=torch.tanh,
+    ):
+        super(DirichletPolicy, self).__init__(
+            input_size=input_size,
+            output_size=output_size*2,
+            hidden_sizes=hidden_sizes,
+            activation=activation,
+        )
+
+        self.output_limit = output_limit
+
+    def forward(self, x, pi=None, use_pi=True):
+        concentration = super(DirichletPolicy, self).forward(x)
+
+        dist = torch.distributions.dirichlet.Dirichlet(concentration)
+
+        if use_pi:
+            pi = dist.sample()
+        log_pi = dist.log_prob(pi).sum(dim=-1)
+
+        # Make sure outputs are in correct range
+        concentration = concentration * self.output_limit
+
+        # maintain consistent format as GuassianPolicy
+        return concentration, _, pi, log_pi

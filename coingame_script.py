@@ -36,8 +36,11 @@ from networks import MLP, GaussianPolicy
 from memoryBuffers import ReplayBuffer, Buffer
 import coinGameExperiment
 
+from datetime import datetime
+
 """DQN Test"""
 
+print("DQN Test")
 # Population count and subpopulatinos
 N = 1000
 d = 4
@@ -86,11 +89,11 @@ experiment = coinGameExperiment.CoinGameExperiment(env=env,
                    device=device,
                    save_name='dqn.csv')
 
-rounds = 100
-timesteps= 1000
+rounds = 1
+timesteps= 500
 count = 10
-dqn_df, dqn_players, dqn_players_df = experiment.play_multi_rounds(rounds, timesteps, count)
-
+#dqn_df, dqn_players, dqn_players_df = experiment.play_multi_rounds(rounds, timesteps, count)
+print("DONE DQN")
 
 """PPO Test"""
 
@@ -134,11 +137,15 @@ experiment = coinGameExperiment.CoinGameExperiment(env=env,
                    player_options=ppo_player_options,
                    player_models=ppo_models,
                    player_model_params=ppo_model_params,
-                   device='cpu',
+                   device=device,
                    save_name='ppo.csv')
 
-rounds = 1
-timesteps=1
+rounds = 100
+timesteps = 1000
 count = 10
+print(f'Starting timesteps:{timesteps}, rounds:{rounds}, N:{N}, d:{d}, PPO')
+start = datetime.now()
+print(start)
 ppo_df, dqn_players, dqn_players_df = experiment.play_multi_rounds(rounds, timesteps, count)
+print(datetime.now()-start)
 

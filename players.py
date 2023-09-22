@@ -10,6 +10,7 @@ import torch.optim as optim
 from memoryBuffers import ReplayBuffer, Buffer
 import torch.nn.functional as F
 import torch
+from datetime import datetime
 
 class Player():
   """
@@ -45,6 +46,7 @@ class DQNPlayer(Player):
                 act_limit,
                 model,
                 model_params,
+                save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data',
                 network='dqn',
                 steps=0,
                 gamma=0.99,
@@ -70,6 +72,12 @@ class DQNPlayer(Player):
       self.target_update_step = target_update_step
       self.q_losses = q_losses
 
+      self.save_path = save_path
+      # Get the current date
+      today = datetime.now().strftime("%Y%m%d")
+      # Define the directory path with the current date as the name
+      self.save_path = self.save_path + f'/{today}'
+
       # Main network
       self.qf = model(**model_params).to(self.device)
 
@@ -90,9 +98,13 @@ class DQNPlayer(Player):
      self.replay_buffer.add(obs, action, reward, next_obs, done)
 
 
-    def select_action(self, obs):
+    def select_action(self, obs, eval_mode=False):
         """Select an action from the set of available actions."""
         # Decaying epsilon
+
+        if eval_mode:
+          return action.detach().cpu().item()
+
         self.epsilon *= self.epsilon_decay
         self.epsilon = max(self.epsilon, 0.01)
 
@@ -103,6 +115,17 @@ class DQNPlayer(Player):
           # Choose the action with highest Q-value at the current state
           action = self.qf(obs).argmax()
           return action.detach().cpu().item()
+   
+
+    def save_policy(self, df2, cols=['A1', 'A2', 'A3', 'A4']):
+      df = df2.copy()
+      torch.save(self.qf.state_dict(), f'{self.save_path}/DQN_Player_{self.player_id}_VF_SD.csv')
+
+      df[cols]  = df.apply(lambda row: self.qf(torch.Tensor(row.values)).detach().numpy(), axis=1, result_type='expand')
+      df.to_csv(f'{self.save_path}/DQN_Player_{self.player_id}_VF.csv')
+
+      print("Player Info Saved")
+      return 1
 
     def train_model(self):
         # only train if we have more steps than batchsize
@@ -171,6 +194,7 @@ class PPOPlayer(Player):
                 actor_model_params,
                 critic_model,
                 critic_model_params,
+                save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data',
                 steps=0,
                 gamma=0.99,
                 lam=0.97,
@@ -220,13 +244,25 @@ class PPOPlayer(Player):
       # Experience buffer
       self.buffer = Buffer(self.obs_dim, self.act_dim, self.sample_size, self.device, self.gamma, self.lam)
 
+      self.save_path = save_path
+      # Get the current date
+      today = datetime.now().strftime("%Y%m%d")
+      # Define the directory path with the current date as the name
+      self.save_path = self.save_path + f'/{today}'
 
-   def select_action(self, obs):
-       action, _, _, _ = self.policy(torch.Tensor(obs).to(self.device))
-       action = action.detach().cpu().numpy().flatten()
+   def select_action(self, obs, eval_mode=False):
+      if eval_mode == False:
+         # actions sampled from distribution means and stds of each
+         # action. Then standardized to prob dist
+         _, _, action, _ = self.policy(torch.Tensor(obs).to(self.device))
+      else:
+        # action is the largus mu from our guassian policy
+        action, _, _, _ = self.policy(torch.Tensor(obs).to(self.device))
+
+      action = action.detach().cpu().numpy().flatten()
 
        # softmax to convert to provs
-       return np.random.choice(range(0, self.act_dim), p=np.exp(action)/sum(np.exp(action)))
+      return np.random.choice(range(0, self.act_dim), p=np.exp(action)/sum(np.exp(action)))
 
 
    def compute_vf_loss(self, obs, ret, v_old):
@@ -308,3 +344,19 @@ class PPOPlayer(Player):
        v = self.vf(torch.Tensor(obs).to(self.device))
        self.buffer.add(obs, action, reward, done, v)
        return 1
+
+
+   def save_policy(self, df2, cols=['A1', 'A2', 'A3', 'A4']):
+      df = df2.copy()
+
+      torch.save(self.policy.state_dict(), f'{self.save_path}/PPO_Player_{self.player_id}_PN_SD.csv')
+      torch.save(self.vf.state_dict(), f'{self.save_path}/PPO_Player_{self.player_id}_VF_SD.csv')
+
+      df[cols] = df.apply(lambda row: self.policy(torch.Tensor(row))[2].detach().numpy(), axis=1, result_type='expand')
+
+      df[cols] = np.exp(df[cols])
+      df[cols] = df[cols]/np.sum(df[cols], axis=0)
+      df.to_csv(f'{self.save_path}/PPO_Player_{self.player_id}_PN.csv')
+      print("Player Info Saved")
+
+      return 1

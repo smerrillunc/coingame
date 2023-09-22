@@ -13,8 +13,6 @@ import numpy as np
 from sklearn.utils import shuffle
 import torch.optim as optim
 
-from population import Population
-
 import math
 import random
 import matplotlib
@@ -31,7 +29,10 @@ from sklearn.utils import shuffle
 import torch.optim as optim
 
 from population import Population
+import itertools
 
+import os
+from datetime import datetime
 
 class CoinGameExperiment():
   """
@@ -49,9 +50,20 @@ class CoinGameExperiment():
     policy_init_options: Initial policy distribution for players
   """
 
-  def __init__(self, env, env_options, population_options, player, player_options, player_models, player_model_params, device, save_name='ppo.csv'):
+  def __init__(self, 
+               env, 
+               env_options, 
+               population_options, 
+               player, player_options, 
+               player_models, 
+               player_model_params, 
+               device, 
+               save_path=r'/Users/scottmerrill/Documents/UNC/Research/coingame/data/', 
+               save_name='ppo.csv'):
     # setup the environment according to options passed    
     self.env = env(**env_options)
+    self.n = env_options['grid_shape'][0]
+    self.n_coins = env_options['n_coins']
 
     # setup population params    
     self.N = population_options["N"]
@@ -66,8 +78,25 @@ class CoinGameExperiment():
                                  d=self.d)
 
     self.device = device
+    self.save_path = save_path
     self.save_name = save_name
-    pass
+    self.states_df = self.generate_all_states()
+
+
+    # Get the current date
+    today = datetime.now().strftime("%Y%m%d")
+
+    # Define the directory path with the current date as the name
+    self.save_path = self.save_path + f'{today}'
+
+    # Check if the directory already exists; if not, create it
+    if not os.path.exists(self.save_path):
+        os.makedirs(self.save_path)
+        print(f"Directory '{today}' created.")
+    else:
+        print(f"Directory '{today}' already exists.")
+
+        pass
 
   ###############################
   ###### GAME PLAY METHODS ######
@@ -247,8 +276,12 @@ class CoinGameExperiment():
       # play all the games in player_pairings and record reward
       tmp = self.play_paired_games(self.env, player_pairs, self.population.players, timesteps, self.device)
       df = pd.concat([df, tmp])
-      df = df.to_csv(self.save_name)
+      df.to_csv(f'{self.save_path}/{self.save_name}')
 
+
+    for player in self.population.players:
+      tmp = player.save_policy(self.states_df,
+                               cols=['A1', 'A2', 'A3', 'A4'])
 
     return df, self.population.players, self.population.players_df
 
@@ -370,3 +403,12 @@ class CoinGameExperiment():
       env._agent_pos['r'] = state_config[2]
 
       return env
+
+
+  def generate_all_states(self):
+    length = self.n*self.n*4
+    ones = self.n_coins
+    which = np.array(list(itertools.combinations(range(length), ones)))
+    grid = np.zeros((len(which), length), dtype="int8")
+    grid[np.arange(len(which))[None].T, which] = 1
+    return pd.DataFrame(grid)
