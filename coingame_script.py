@@ -42,7 +42,7 @@ from datetime import datetime
 
 print("DQN Test")
 # Population count and subpopulatinos
-N = 1000
+N = 4*2*10
 d = 4
 population_options = {'N':N,
                       'd':d}
@@ -143,7 +143,10 @@ experiment = coinGameExperiment.CoinGameExperiment(env=env,
 rounds = 100
 timesteps = 1000
 count = 10
+total_games = rounds*N/2
+total_timesteps = total_games * timesteps
 print(f'Starting timesteps:{timesteps}, rounds:{rounds}, N:{N}, d:{d}, PPO')
+print(f'Total Games: {total_games}, Total Timesteps {total_timesteps}')
 start = datetime.now()
 print(start)
 ppo_df, dqn_players, dqn_players_df = experiment.play_multi_rounds(rounds, timesteps, count)

@@ -263,7 +263,10 @@ class CoinGameExperiment():
     # initialize game, payoff, rewards, rounds, etc.
     state, actions = self.env.reset()
 
-    for round in range(rounds):
+    for round_idx in range(rounds):
+      start = datetime.now()
+      print(f'Round {round_idx}, Start Time {start}')
+
       # pair players for this particular round
       player_pairs = self.population.pair_players(self.population.d,
                                                   self.population.blue_players,
@@ -275,8 +278,14 @@ class CoinGameExperiment():
 
       # play all the games in player_pairings and record reward
       tmp = self.play_paired_games(self.env, player_pairs, self.population.players, timesteps, self.device)
+      tmp['round'] = round_idx
       df = pd.concat([df, tmp])
       df.to_csv(f'{self.save_path}/{self.save_name}')
+      end = datetime.now()
+      total_time = start-end
+      time_per_game = total_time / (self.N/2)
+      time_per_timestep = time_per_game / timesteps
+      print(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
 
 
     for player in self.population.players:
