@@ -25,7 +25,15 @@ class Player():
   This class will also provide a way to update player policies.
   """
 
-  def __init__(self, color, population, device="cpu", player_id=None):
+  def __init__(self, 
+  			   color,
+  			   population, 
+  			   obs_dim, 
+  			   act_dim, 
+  			   act_limit=1.0,
+  			   device="cpu", 
+  			   player_id=None, 
+  			   save_path='/'):
 
     # generate random player id if not passed
     if player_id == None:
@@ -33,20 +41,21 @@ class Player():
     else:
       self.player_id = player_id
 
+    self.obs_dim = obs_dim
+    self.act_dim = act_dim
+    self.act_limit = act_limit
+
     self.color = color
     self.population = population
     self.device = device
+    self.save_path = save_path
 
 
 class DQNPlayer(Player):
     def __init__(self, 
-                player_params,
-                obs_dim,
-                act_dim,
-                act_limit,
+                base_player_params,
                 model,
                 model_params,
-                save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data',
                 network='dqn',
                 steps=0,
                 gamma=0.99,
@@ -57,10 +66,7 @@ class DQNPlayer(Player):
                 target_update_step=100,
                 q_losses=list() ):
       
-      super().__init__(**player_params)
-      self.obs_dim = obs_dim
-      self.act_dim = act_dim
-      self.act_limit = act_limit  
+      super().__init__(**base_player_params)
 
       self.network=network
       self.steps = steps
@@ -72,7 +78,6 @@ class DQNPlayer(Player):
       self.target_update_step = target_update_step
       self.q_losses = q_losses
 
-      self.save_path = save_path
       # Get the current date
       today = datetime.now().strftime("%Y%m%d")
       # Define the directory path with the current date as the name
@@ -186,15 +191,11 @@ class PPOPlayer(Player):
    with early stopping based on approximate KL.
    """
    def __init__(self, 
-                player_params,
-                obs_dim,
-                act_dim,
-                act_limit,
+                base_player_params,
                 actor_model,
                 actor_model_params,
                 critic_model,
                 critic_model_params,
-                save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data',
                 steps=0,
                 gamma=0.99,
                 lam=0.97,
@@ -211,12 +212,7 @@ class PPOPlayer(Player):
                 kls=list(),
                 ):
       # initialize player object params
-      super().__init__(**player_params)
-
-      # environement params
-      self.obs_dim = obs_dim
-      self.act_dim = act_dim
-      self.act_limit = act_limit
+      super().__init__(**base_player_params)
 
       self.steps = steps 
       self.gamma = gamma
@@ -244,7 +240,6 @@ class PPOPlayer(Player):
       # Experience buffer
       self.buffer = Buffer(self.obs_dim, self.act_dim, self.sample_size, self.device, self.gamma, self.lam)
 
-      self.save_path = save_path
       # Get the current date
       today = datetime.now().strftime("%Y%m%d")
       # Define the directory path with the current date as the name

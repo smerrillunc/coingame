@@ -20,14 +20,15 @@ class Population():
     policy_init_options: the initial policy player objects will follow
   """
 
-  def __init__(self, playerClass, player_options, models, model_options, N, d):
-    self.playerClass = playerClass
+  def __init__(self, player_dict, N, d):
     self.N = N
     self.d = d
 
-    self.player_options = player_options
-    self.models = models
-    self.model_options = model_options
+    self.playerClass = player_dict['player_class']
+    self.base_player_options = player_dict['base_player_options']
+    self.additional_player_options = player_dict['additional_player_options']
+    self.models = player_dict['player_models']
+    self.model_options = player_dict['player_model_params']
 
     # generate players
     self.players, self.players_df = self.generate_population()
@@ -84,16 +85,25 @@ class Population():
 
 
     # PPO player setting actor/critic nets
-    if len(self.models) == 2:
+    if len(self.model_options) == 2:
       players = np.array([self.playerClass(**self.models[0],
+                                           **self.additional_player_options,
                                            actor_model_params=self.model_options[0],
                                            critic_model_params = self.model_options[1],
-                                           **{**{'player_params':x}, **self.player_options}) for (idx, x) in players_df.iterrows()])
+                                           base_player_params={**{'player_id': x['player_id'],
+                                                                  'color': x['color'],
+                                                                  'population': x['population']},
+                                                               **self.base_player_options}) for (idx, x) in players_df.iterrows()])
+
     # DQN setting only model
     else:
-      players = np.array([self.playerClass(**self.models[0], 
-                                           model_params=self.model_options,
-                                           **{**{'player_params':x}, **self.player_options}) for (idx, x) in players_df.iterrows()])
+      players = np.array([self.playerClass(**self.models[0],
+                                           **self.additional_player_options,
+                                           model_params=self.model_options[0],
+                                           base_player_params={**{'player_id': x['player_id'],
+                                                                  'color': x['color'],
+                                                                  'population': x['population']},
+                                                               **self.base_player_options}) for (idx, x) in players_df.iterrows()])
     return players, players_df
 
 

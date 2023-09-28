@@ -29,10 +29,24 @@ from sklearn.utils import shuffle
 import torch.optim as optim
 
 from population import Population
+from players import PPOPlayer, DQNPlayer
+
 import itertools
 
 import os
 from datetime import datetime
+import logging
+import sys
+
+
+#### TO DO:
+# 1. store meta data on time per round
+# 2. store meta data on experiment params
+
+
+
+
+
 
 class CoinGameExperiment():
   """
@@ -50,53 +64,49 @@ class CoinGameExperiment():
     policy_init_options: Initial policy distribution for players
   """
 
-  def __init__(self, 
-               env, 
-               env_options, 
-               population_options, 
-               player, player_options, 
-               player_models, 
-               player_model_params, 
+  def __init__(self,
+               env_dict, 
+               population_dict, 
+               player_dict, 
                device, 
-               save_path=r'/Users/scottmerrill/Documents/UNC/Research/coingame/data/', 
+               save_policy=False,
+               save_path=r'/Users/scottmerrill/Documents/UNC/Research/coingame/data/',
                save_name='ppo.csv'):
+
     # setup the environment according to options passed    
-    self.env = env(**env_options)
-    self.n = env_options['grid_shape'][0]
-    self.n_coins = env_options['n_coins']
+    self.env = env_dict['env'](**env_dict['env_options'])
+    self.n = env_dict['env_options']['grid_shape'][0]
+    self.n_coins = env_dict['env_options']['n_coins']
 
     # setup population params    
-    self.N = population_options["N"]
-    self.d = population_options["d"]
+    self.N = population_dict["N"]
+    self.d = population_dict["d"]
     
+    # add the save path to the players
+    self.device = device
+    self.save_name = save_name
+    self.states_df = self.generate_all_states()
+    self.save_policy = save_policy
+
+    # Define the directory path with the current date as the name
+    self.save_path = CoinGameExperiment.configure_save_directory(save_path)
+    player_dict['base_player_options']['save_path'] = self.save_path
+
+    # also updare base player options with environment descriptions (state, action, etc.)
+    player_dict['base_player_options'].update(env_dict['env_description'])
+    self.player_dict = player_dict
+
+    # make summary file
+    self.make_summary_file()
+
+    # add logging
+    self.add_logger()
+
     # create population object
-    self.population = Population(playerClass=player,
-                                 player_options=player_options,
-                                 models=player_models,
-                                 model_options=player_model_params,
+    self.population = Population(player_dict=player_dict,
                                  N=self.N,
                                  d=self.d)
 
-    self.device = device
-    self.save_path = save_path
-    self.save_name = save_name
-    self.states_df = self.generate_all_states()
-
-
-    # Get the current date
-    today = datetime.now().strftime("%Y%m%d")
-
-    # Define the directory path with the current date as the name
-    self.save_path = self.save_path + f'{today}'
-
-    # Check if the directory already exists; if not, create it
-    if not os.path.exists(self.save_path):
-        os.makedirs(self.save_path)
-        print(f"Directory '{today}' created.")
-    else:
-        print(f"Directory '{today}' already exists.")
-
-        pass
 
   ###############################
   ###### GAME PLAY METHODS ######
@@ -266,6 +276,7 @@ class CoinGameExperiment():
     for round_idx in range(rounds):
       start = datetime.now()
       print(f'Round {round_idx}, Start Time {start}')
+      self.logger.info(f'Round {round_idx}, Start Time {start}')
 
       # pair players for this particular round
       player_pairs = self.population.pair_players(self.population.d,
@@ -286,11 +297,13 @@ class CoinGameExperiment():
       time_per_game = total_time / (self.N/2)
       time_per_timestep = time_per_game / timesteps
       print(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
+      self.logger.info(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
 
-
-    for player in self.population.players:
-      tmp = player.save_policy(self.states_df,
-                               cols=['A1', 'A2', 'A3', 'A4'])
+    # save the policy of each player for each state
+    if self.save_policy:
+      for player in self.population.players:
+        tmp = player.save_policy(self.states_df,
+                                 cols=['A1', 'A2', 'A3', 'A4'])
 
     return df, self.population.players, self.population.players_df
 
@@ -410,8 +423,89 @@ class CoinGameExperiment():
       env._state = state_config[0]
       env._agent_pos['b'] = state_config[1]
       env._agent_pos['r'] = state_config[2]
-
       return env
+
+  def add_logger(self):
+    # Create a logger
+    self.logger = logging.getLogger('CoinGame')
+    self.logger.setLevel(logging.INFO)
+
+    # Create a file handler to write logs to a file
+    file_handler = logging.FileHandler(f'{self.save_path}/log.log')
+    # Create a stream handler to capture stdout
+    stream_handler = logging.StreamHandler(sys.stdout)
+
+    # Create a formatter to format log messages
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    file_handler.setFormatter(formatter)
+    stream_handler.setFormatter(formatter)
+
+    self.logger.addHandler(file_handler)
+    self.logger.addHandler(stream_handler)
+
+  def make_summary_file(self):
+    # create file in director
+    with open(f'{self.save_path}/experiment_summary.txt', 'w') as file:
+      file.write(f'N:{self.N}\n')
+      file.write(f'd:{self.d}\n')
+
+      file.write(f'grid:({self.n}, {self.n})\n')
+      file.write(f'n_coins:{self.n_coins}\n')
+
+      if self.player_dict['player_class'] == PPOPlayer:
+        file.write(f'player_class: PPOPlayer\n')
+        for idx, model_params in enumerate(self.player_dict['player_model_params']):
+          if idx == 0:
+            file.write(f'\nACTOR NETWORK\n')
+          elif idx == 1:
+            file.write(f'\nCritic NETWORK\n')
+          for key, value in model_params.items():
+            try:
+              file.write(f'{key}:{value}\n')
+            except:
+              continue
+
+      else:
+        file.write(f'player_class: DQNPlayer\n')
+        file.write(f'\nVALUE NETWORK\n')
+        for model_params in self.player_dict['player_model_params']:
+          for key, value in model_params.items():
+            try:
+              file.write(f'{key}:{value}\n')
+            except:
+              continue
+
+      for key, value in self.player_dict['additional_player_options'].items():
+        try:
+          file.write(f'{key}:{value}\n')
+        except:
+          continue
+
+  @staticmethod
+  def configure_save_directory(save_path):
+    # Define the directory path with the current date as the name
+    today = datetime.now().strftime("%Y%m%d")
+    save_path = save_path + f'{today}'
+
+    # Make a directory in save path for current date
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+        print(f"Directory '{today}' created.")
+    else:
+        print(f"Directory '{today}' already exists.")
+        pass
+
+    # this makes a directory for specific trial on a date
+    i = 1
+    while True:
+      if not os.path.exists(save_path + f'/{i}'):
+          save_path = save_path + f'/{i}'
+          os.makedirs(save_path)
+          print(f"Save Path created for Experiment number {i} on '{today}'")
+          break
+      else:
+        i = i + 1
+    return save_path
 
 
   def generate_all_states(self):
@@ -421,3 +515,4 @@ class CoinGameExperiment():
     grid = np.zeros((len(which), length), dtype="int8")
     grid[np.arange(len(which))[None].T, which] = 1
     return pd.DataFrame(grid)
+

@@ -57,19 +57,20 @@ env_options = {'grid_shape':(n,n),
 
 env_description = {'obs_dim':4*n*n,
                    'act_dim':4,
-                'act_limit':1}
+                   'act_limit':1}
+
+env_dict = {'env':env,
+            'env_options':env_options,
+            'env_description':env_description}
+
+## Population Settings
+population_dict = {'N':N,
+                    'd':d}
 
 
-dqn_models = [{'model':MLP}]
-
-dqn_models_params = {'input_size':4*n**2, \
-                'output_size':4,
-                'output_limit':1.0,
-                'hidden_sizes':(64,64),
-                'activation':torch.tanh}
-
-dqn_player_options = {
-                      'steps':0,
+# player settings
+base_player_options = {'save_path': r'/Users/scottmerrill/Documents/UNC/Research/coingame/data/'}
+dqn_player_options = {'steps':0,
                       'gamma':0.99,
                       'epsilon':1.0,
                       'epsilon_decay':0.995,
@@ -77,17 +78,32 @@ dqn_player_options = {
                       'batch_size':64,
                       'target_update_step':100}
 
-dqn_player_options.update(env_description)
+dqn_models = [{'model':MLP}]
+dqn_models_params = [{'input_size': 4 * n ** 2, \
+                      'output_size': 4,
+                      'output_limit': 1.0,
+                      'hidden_sizes': (64, 64),
+                      'activation': torch.tanh}]
 
-experiment = coinGameExperiment.CoinGameExperiment(env=env,
-                   env_options=env_options,
-                   population_options=population_options,
-                   player=DQNPlayer,
-                   player_options=dqn_player_options,
-                   player_models=dqn_models,
-                   player_model_params=dqn_models_params,
-                   device=device,
-                   save_name='dqn.csv')
+
+
+player_dict = {'player_class':DQNPlayer,
+               'base_player_options':base_player_options,
+               'additional_player_options':dqn_player_options,
+               'player_models':dqn_models,
+               'player_model_params':dqn_models_params}
+
+
+experiment = coinGameExperiment.CoinGameExperiment(env_dict=env_dict,
+                                                  population_dict=population_dict,
+                                                  player_dict=player_dict,
+                                                 device=device,
+                                                 save_name='dqn.csv')
+
+
+
+
+
 
 rounds = 1
 timesteps= 500
@@ -104,12 +120,15 @@ ppo_models = [{'actor_model':GaussianPolicy,
               'critic_model':MLP}]
 
 
-ppo_model_params = [{'input_size':4*n**2, \
+ppo_model_params = [
+                #actor network
+                {'input_size':4*n**2, \
                 'output_size':4,
                 'output_limit':1.0,
                 'hidden_sizes':(64,64),
                 'activation':torch.tanh},
 
+                # critic network
                 {'input_size':4*n**2,
                 'output_size':1,
                 'hidden_sizes':(128,64),
@@ -127,20 +146,20 @@ ppo_player_options = {'steps':0,
                     'policy_lr':3e-4,
                     'vf_lr':1e-3}
 
-ppo_player_options.update(env_description)
-env = CoinGame
+player_dict = {'player_class':PPOPlayer,
+               'base_player_options':base_player_options,
+               'additional_player_options':ppo_player_options,
+               'player_models':ppo_models,
+               'player_model_params':ppo_model_params}
 
-experiment = coinGameExperiment.CoinGameExperiment(env=env,
-                   env_options=env_options,
-                   population_options=population_options,
-                   player=PPOPlayer,
-                   player_options=ppo_player_options,
-                   player_models=ppo_models,
-                   player_model_params=ppo_model_params,
-                   device=device,
-                   save_name='ppo.csv')
 
-rounds = 100
+experiment = coinGameExperiment.CoinGameExperiment(env_dict=env_dict,
+                                                   population_dict=population_dict,
+                                                   player_dict=player_dict,
+                                                   device=device,
+                                                   save_name='ppo.csv')
+
+rounds = 1
 timesteps = 1000
 count = 10
 total_games = rounds*N/2
@@ -151,4 +170,3 @@ start = datetime.now()
 print(start)
 ppo_df, dqn_players, dqn_players_df = experiment.play_multi_rounds(rounds, timesteps, count)
 print(datetime.now()-start)
-
