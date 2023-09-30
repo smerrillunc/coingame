@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from sklearn.utils import shuffle
 import torch.optim as optim
-
+import ray
 
 class Population():
   """
@@ -86,7 +86,7 @@ class Population():
 
     # PPO player setting actor/critic nets
     if len(self.model_options) == 2:
-      players = np.array([self.playerClass(**self.models[0],
+      players = np.array([self.playerClass.remote(**self.models[0],
                                            **self.additional_player_options,
                                            actor_model_params=self.model_options[0],
                                            critic_model_params = self.model_options[1],
@@ -97,7 +97,7 @@ class Population():
 
     # DQN setting only model
     else:
-      players = np.array([self.playerClass(**self.models[0],
+      players = np.array([self.playerClass.remote(**self.models[0],
                                            **self.additional_player_options,
                                            model_params=self.model_options[0],
                                            base_player_params={**{'player_id': x['player_id'],

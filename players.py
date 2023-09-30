@@ -11,6 +11,7 @@ from memoryBuffers import ReplayBuffer, Buffer
 import torch.nn.functional as F
 import torch
 from datetime import datetime
+import ray
 
 class Player():
   """
@@ -31,6 +32,7 @@ class Player():
   			   obs_dim, 
   			   act_dim, 
   			   act_limit=1.0,
+               steps=0,
   			   device="cpu", 
   			   player_id=None, 
   			   save_path='/'):
@@ -44,20 +46,29 @@ class Player():
     self.obs_dim = obs_dim
     self.act_dim = act_dim
     self.act_limit = act_limit
+    self.steps = steps
 
     self.color = color
     self.population = population
     self.device = device
     self.save_path = save_path
+  def get_player_color(self):
+      return self.color
+  def get_player_population(self):
+      return self.population
+  def get_player_id(self):
+      return self.player_id
+  def increment_steps(self):
+      self.steps = self.steps + 1
 
 
+@ray.remote
 class DQNPlayer(Player):
     def __init__(self, 
                 base_player_params,
                 model,
                 model_params,
                 network='dqn',
-                steps=0,
                 gamma=0.99,
                 epsilon=1.0,
                 epsilon_decay=0.995,
@@ -69,7 +80,6 @@ class DQNPlayer(Player):
       super().__init__(**base_player_params)
 
       self.network=network
-      self.steps = steps
       self.gamma = gamma
       self.epsilon = epsilon
       self.epsilon_decay = epsilon_decay
@@ -96,11 +106,11 @@ class DQNPlayer(Player):
       self.qf_optimizer = optim.Adam(self.qf.parameters(), lr=1e-3)
 
       # Experience buffer
-      self.replay_buffer = ReplayBuffer(self.obs_dim, 1, self.buffer_size, self.device)
+      self.replay_buffer = ReplayBuffer.remote(self.obs_dim, 1, self.buffer_size, self.device)
 
 
     def add_experience(self, obs, action, reward, next_obs, done):
-     self.replay_buffer.add(obs, action, reward, next_obs, done)
+     self.replay_buffer.add.remote(obs, action, reward, next_obs, done)
 
 
     def select_action(self, obs, eval_mode=False):
@@ -184,7 +194,7 @@ class DQNPlayer(Player):
         # Save loss
         self.q_losses.append(qf_loss.item())
 
-
+@ray.remote
 class PPOPlayer(Player):
    """
    An implementation of the Proximal Policy Optimization (PPO) (by clipping) agent, 
@@ -196,7 +206,6 @@ class PPOPlayer(Player):
                 actor_model_params,
                 critic_model,
                 critic_model_params,
-                steps=0,
                 gamma=0.99,
                 lam=0.97,
                 hidden_sizes=(64,64),
@@ -214,7 +223,6 @@ class PPOPlayer(Player):
       # initialize player object params
       super().__init__(**base_player_params)
 
-      self.steps = steps 
       self.gamma = gamma
       self.lam = lam
       self.hidden_sizes = hidden_sizes
@@ -238,7 +246,7 @@ class PPOPlayer(Player):
       self.vf_optimizer = optim.Adam(self.vf.parameters(), lr=self.vf_lr)
       
       # Experience buffer
-      self.buffer = Buffer(self.obs_dim, self.act_dim, self.sample_size, self.device, self.gamma, self.lam)
+      self.buffer = Buffer.remote(self.obs_dim, self.act_dim, self.sample_size, self.device, self.gamma, self.lam)
 
       # Get the current date
       today = datetime.now().strftime("%Y%m%d")
@@ -337,7 +345,7 @@ class PPOPlayer(Player):
 
        # critic estimate
        v = self.vf(torch.Tensor(obs).to(self.device))
-       self.buffer.add(obs, action, reward, done, v)
+       self.buffer.add.remote(obs, action, reward, done, v)
        return 1
 
 

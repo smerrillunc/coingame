@@ -70,8 +70,7 @@ population_dict = {'N':N,
 
 # player settings
 base_player_options = {'save_path': r'/Users/scottmerrill/Documents/UNC/Research/coingame/data/'}
-dqn_player_options = {'steps':0,
-                      'gamma':0.99,
+dqn_player_options = {'gamma':0.99,
                       'epsilon':1.0,
                       'epsilon_decay':0.995,
                       'buffer_size':int(1e4),
@@ -92,7 +91,6 @@ player_dict = {'player_class':DQNPlayer,
                'additional_player_options':dqn_player_options,
                'player_models':dqn_models,
                'player_model_params':dqn_models_params}
-
 
 experiment = coinGameExperiment.CoinGameExperiment(env_dict=env_dict,
                                                   population_dict=population_dict,
@@ -134,8 +132,7 @@ ppo_model_params = [
                 'hidden_sizes':(128,64),
               'activation':torch.tanh}]
 
-ppo_player_options = {'steps':0,
-                    'gamma':0.99,
+ppo_player_options = {'gamma':0.99,
                     'lam':0.97,
                     'hidden_sizes':(64,64),
                     'sample_size':2048,

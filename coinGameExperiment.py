@@ -32,13 +32,15 @@ from population import Population
 from players import PPOPlayer, DQNPlayer
 
 import itertools
+import copy
 
 import os
 from datetime import datetime
 import logging
 import sys
+sys.path.append('/Users/scottmerrill/Documents/UNC/Research/coingame/evoenv')
 
-
+import ray
 #### TO DO:
 # 1. store meta data on time per round
 # 2. store meta data on experiment params
@@ -112,7 +114,8 @@ class CoinGameExperiment():
   ###### GAME PLAY METHODS ######
   ###############################
   @staticmethod
-  def play_game(env, players, timesteps, device='cpu'):
+  @ray.remote(num_cpus=1)
+  def play_game(env2, players, timesteps, device='cpu'):
     """
     Description:  This function will play a single game between players in array
     some starting state.  The resulting networks of the players will be updated in place.
@@ -126,10 +129,14 @@ class CoinGameExperiment():
       players: with modified policeis
       df: a dataframe with statistics on the game
     """
+    # since we're running in parallel now, this is necessary to avoid multiple players
+    # updating same environment
+    env = copy.deepcopy(env2)
 
     # by design blue player should already be first, but just in case
     # does this even matter?
-    if players[0].color == 'r':
+    player_color = ray.get(players[0].get_player_color.remote())
+    if player_color == 'r':
       players[0], players[1] = players[1], players[0]
 
     df = pd.DataFrame()
@@ -156,7 +163,7 @@ class CoinGameExperiment():
 
           # select an action for each player
           for player in players:
-            action = player.select_action(state)
+            action = ray.get(player.select_action.remote(state))
             actions.append(action)
 
           # take a step in the environment (for this env we need to map numeric
@@ -180,10 +187,10 @@ class CoinGameExperiment():
               'coin_color':coin_color,
               'red_label':red_label,
               'blue_label':blue_label,
-              'blue_population': players[0].population,
-              'red_population': players[1].population,
-              'blue_player_id':players[0].player_id,
-              'red_player_id':players[1].player_id}
+              'blue_population': ray.get(players[0].get_player_population.remote()),
+              'red_population': ray.get(players[1].get_player_population.remote()),
+              'blue_player_id':ray.get(players[0].get_player_id.remote()),
+              'red_player_id':ray.get(players[1].get_player_id.remote())}
 
             df = pd.concat([df, pd.DataFrame(tmp, index=[0])])
 
@@ -198,22 +205,23 @@ class CoinGameExperiment():
           # update experience replay memory and update policies
           # question do we need to store actions/rewards of all players if we're selfish
           # optimizers?
+
           for idx, player in enumerate(players):
-            player.steps += 1
+            player.increment_steps.remote()
 
             # can be different depending on player type
-            player.add_experience(state,
+            player.add_experience.remote(state,
                                  actions[idx],
                                  rewards[idx],
                                   next_state,
                                   done=False)
             # Will only acutally train when the number of experience is equal to sample size for PPO player
             # and when the number of experience is greater than batch_size for dqn player
-            player.train_model()
+            ray.get(player.train_model.remote())
           # set state to next state
           state = next_state
 
-    return env, players, df
+    return df
 
 
   @staticmethod
@@ -233,11 +241,14 @@ class CoinGameExperiment():
     """
 
     df = pd.DataFrame()
-
+    game_refs = []
+    i = 0
     # x is a population indexer
     # y is a match pair indexer
     for x in range(player_pairs.shape[0]):
       for y in range(player_pairs.shape[1]):
+        i +=1
+        print(x, y)
         # reset environment
         state, actions = env.reset()
 
@@ -246,8 +257,13 @@ class CoinGameExperiment():
         # location, then 10 players will play in this match.
         player_pair = players[player_pairs[x, y].astype(int)]
         # play the game between these players append rewards
-        env, player_pair, tmp = CoinGameExperiment.play_game(env, player_pair, timesteps, device)
-        df = pd.concat([df, tmp])
+        game_refs.append(CoinGameExperiment.play_game.remote(env, player_pair, timesteps, device))
+
+    tmp = ray.get(game_refs)
+    # get results from each gamea nd concatonate
+    for i in range(0, len(tmp)):
+      df = pd.concat([df, tmp[i]])
+
     return df
 
 

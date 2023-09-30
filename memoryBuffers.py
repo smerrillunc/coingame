@@ -2,7 +2,8 @@ import pandas as pd
 import numpy as np
 from collections import namedtuple, deque
 import torch
-
+import ray
+@ray.remote
 class ReplayBuffer(object):
     """
     A simple FIFO experience replay buffer for agents.
@@ -34,7 +35,7 @@ class ReplayBuffer(object):
                     rews=torch.Tensor(self.rews_buf[idxs]).to(self.device),
                     done=torch.Tensor(self.done_buf[idxs]).to(self.device))
 
-
+@ray.remote
 class Buffer(object):
     """
     A buffer for storing trajectories experienced by a agent interacting
