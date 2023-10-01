@@ -7,6 +7,7 @@ import numpy as np
 from sklearn.utils import shuffle
 import torch.optim as optim
 
+import jax.numpy as jnp
 
 class Population():
   """

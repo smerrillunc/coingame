@@ -5,10 +5,14 @@ import torch.nn.functional as F
 import pandas as pd
 import numpy as np
 
+# https://github.com/dongminlee94/deep_rl/tree/main
 
 def identity(x):
     """Return input without any change."""
     return x
+
+
+
 
 
 """
@@ -56,6 +60,30 @@ class MLP(nn.Module):
         # If the network is used as actor network, make sure output is in correct range
         x = x * self.output_limit if self.use_actor else x   
         return x
+
+class CategoricalPolicy(MLP):
+    def __init__(self,
+                 input_size,
+                 output_size,
+                 output_limit=1.0,
+                 hidden_sizes=(64,64),
+                 activation=torch.tanh,
+    ):
+        super(CategoricalPolicy, self).__init__(
+            input_size=input_size,
+            output_size=output_size,
+            hidden_sizes=hidden_sizes,
+            activation=activation)
+
+    def forward(self, x, pi=None, use_pi=True):
+        x = super(CategoricalPolicy, self).forward(x)
+        pi = F.softmax(x, dim=-1)
+
+        dist = torch.distributions.categorical.Categorical(pi)
+        action = dist.sample()
+
+        log_pi = dist.log_prob(action)
+        return action, None, pi, log_pi
 
 
 class GaussianPolicy(MLP):

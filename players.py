@@ -5,6 +5,8 @@ from collections import namedtuple, deque
 from itertools import count
 import pandas as pd
 import numpy as np
+import jax.numpy as jnp
+
 from sklearn.utils import shuffle
 import torch.optim as optim
 from memoryBuffers import ReplayBuffer, Buffer
@@ -37,7 +39,7 @@ class Player():
 
     # generate random player id if not passed
     if player_id == None:
-      self.player_id = np.random.randint(0, 1000000)
+      self.player_id = jnp.random.randint(0, 1000000)
     else:
       self.player_id = player_id
 
@@ -79,9 +81,6 @@ class DQNPlayer(Player):
       self.q_losses = q_losses
 
       # Get the current date
-      today = datetime.now().strftime("%Y%m%d")
-      # Define the directory path with the current date as the name
-      self.save_path = self.save_path + f'/{today}'
 
       # Main network
       self.qf = model(**model_params).to(self.device)
@@ -113,18 +112,20 @@ class DQNPlayer(Player):
         self.epsilon *= self.epsilon_decay
         self.epsilon = max(self.epsilon, 0.01)
 
-        if np.random.rand() <= self.epsilon:
+        if jnp.random.rand() <= self.epsilon:
           # Choose a random action with probability epsilon
-          return np.random.randint(self.act_dim)
+          return jnp.random.randint(self.act_dim)
         else:
           # Choose the action with highest Q-value at the current state
           action = self.qf(obs).argmax()
           return action.detach().cpu().item()
    
+    def save_network(self):
+        torch.save(self.qf.state_dict(), f'{self.save_path}/DQN_Player_{self.player_id}_VF_SD.csv')
+        return 1
 
     def save_policy(self, df2, cols=['A1', 'A2', 'A3', 'A4']):
       df = df2.copy()
-      torch.save(self.qf.state_dict(), f'{self.save_path}/DQN_Player_{self.player_id}_VF_SD.csv')
 
       df[cols]  = df.apply(lambda row: self.qf(torch.Tensor(row.values)).detach().numpy(), axis=1, result_type='expand')
       df.to_csv(f'{self.save_path}/DQN_Player_{self.player_id}_VF.csv')
@@ -240,24 +241,21 @@ class PPOPlayer(Player):
       # Experience buffer
       self.buffer = Buffer(self.obs_dim, self.act_dim, self.sample_size, self.device, self.gamma, self.lam)
 
-      # Get the current date
-      today = datetime.now().strftime("%Y%m%d")
-      # Define the directory path with the current date as the name
-      self.save_path = self.save_path + f'/{today}'
 
    def select_action(self, obs, eval_mode=False):
       if eval_mode == False:
          # actions sampled from distribution means and stds of each
          # action. Then standardized to prob dist
-         _, _, action, _ = self.policy(torch.Tensor(obs).to(self.device))
+         action, _, _, _ = self.policy(torch.Tensor(obs).to(self.device))
+         return action.detach().cpu().numpy().flatten()[0]
       else:
         # action is the largus mu from our guassian policy
-        action, _, _, _ = self.policy(torch.Tensor(obs).to(self.device))
+        _, _, action, _ = self.policy(torch.Tensor(obs).to(self.device))
 
-      action = action.detach().cpu().numpy().flatten()
+        action = action.detach().cpu().numpy().flatten()
 
-       # softmax to convert to provs
-      return np.random.choice(range(0, self.act_dim), p=np.exp(action)/sum(np.exp(action)))
+        # softmax to convert to provs
+        return jnp.random.choice(range(0, self.act_dim), p=jnp.exp(action)/sum(jnp.exp(action)))
 
 
    def compute_vf_loss(self, obs, ret, v_old):
@@ -340,17 +338,16 @@ class PPOPlayer(Player):
        self.buffer.add(obs, action, reward, done, v)
        return 1
 
+   def save_network(self):
+       torch.save(self.policy.state_dict(), f'{self.save_path}/PPO_Player_{self.player_id}_PN_SD.csv')
+       torch.save(self.vf.state_dict(), f'{self.save_path}/PPO_Player_{self.player_id}_VF_SD.csv')
+       return 1
 
    def save_policy(self, df2, cols=['A1', 'A2', 'A3', 'A4']):
       df = df2.copy()
-
-      torch.save(self.policy.state_dict(), f'{self.save_path}/PPO_Player_{self.player_id}_PN_SD.csv')
-      torch.save(self.vf.state_dict(), f'{self.save_path}/PPO_Player_{self.player_id}_VF_SD.csv')
-
       df[cols] = df.apply(lambda row: self.policy(torch.Tensor(row))[2].detach().numpy(), axis=1, result_type='expand')
-
-      df[cols] = np.exp(df[cols])
-      df[cols] = df[cols]/np.sum(df[cols], axis=0)
+      df[cols] = jnp.exp(df[cols])
+      df[cols] = df[cols]/jnp.sum(df[cols], axis=0)
       df.to_csv(f'{self.save_path}/PPO_Player_{self.player_id}_PN.csv')
       print("Player Info Saved")
 

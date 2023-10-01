@@ -25,6 +25,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import pandas as pd
 import numpy as np
+import jax.numpy as jnp
 from sklearn.utils import shuffle
 import torch.optim as optim
 
@@ -37,6 +38,7 @@ import os
 from datetime import datetime
 import logging
 import sys
+import matplotlib.pyplot as plt
 
 
 #### TO DO:
@@ -71,7 +73,7 @@ class CoinGameExperiment():
                device, 
                save_policy=False,
                save_path=r'/Users/scottmerrill/Documents/UNC/Research/coingame/data/',
-               save_name='ppo.csv'):
+               save_name='ppo'):
 
     # setup the environment according to options passed    
     self.env = env_dict['env'](**env_dict['env_options'])
@@ -287,22 +289,32 @@ class CoinGameExperiment():
       player_pairs = self.population.population_migration(player_pairs, count//2)
       player_pairs = self.population.population_migration(player_pairs, count//2)
 
-      # play all the games in player_pairings and record reward
-      tmp = self.play_paired_games(self.env, player_pairs, self.population.players, timesteps, self.device)
-      tmp['round'] = round_idx
-      df = pd.concat([df, tmp])
-      df.to_csv(f'{self.save_path}/{self.save_name}')
       end = datetime.now()
       total_time = end-start
       time_per_game = total_time / (self.N/2)
       time_per_timestep = time_per_game / timesteps
+
+      # play all the games in player_pairings and record reward
+      tmp = self.play_paired_games(self.env, player_pairs, self.population.players, timesteps, self.device)
+      tmp['round'] = round_idx
+      tmp['round_time'] = total_time
+      tmp['time_per_game'] = time_per_game
+      tmp['time_per_timestep'] = time_per_timestep
+
+      df = pd.concat([df, tmp])
+      df.to_csv(f'{self.save_path}/{self.save_name}.csv')
+
       print(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
       self.logger.info(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
 
+
+    self.make_plots(df, timesteps, count)
+
     # save the policy of each player for each state
-    if self.save_policy:
-      for player in self.population.players:
-        tmp = player.save_policy(self.states_df,
+    for player in self.population.players:
+      _ = player.save_network()
+      if self.save_policy:
+        _ = player.save_policy(self.states_df,
                                  cols=['A1', 'A2', 'A3', 'A4'])
 
     return df, self.population.players, self.population.players_df
@@ -337,7 +349,7 @@ class CoinGameExperiment():
 
     # distances is just manhattan distance b/w player and coin locs
     red_distance = np.abs(env._agent_pos['r'] - coin_loc).sum()
-    blue_distance =  np.abs(env._agent_pos['b'] - coin_loc).sum()
+    blue_distance = np.abs(env._agent_pos['b'] - coin_loc).sum()
     return blue_distance, red_distance, coin_color
 
 
@@ -442,6 +454,25 @@ class CoinGameExperiment():
 
     self.logger.addHandler(file_handler)
     self.logger.addHandler(stream_handler)
+
+  def make_plots(self, df, timesteps, count):
+    df['total_reward'] = df['red_reward'] + df['blue_reward']
+
+    means = df.groupby('round').aggregate({'total_reward': 'mean',
+                                           'red_reward': 'mean',
+                                           'blue_reward': 'mean'}).reset_index()
+
+    plt.figure(figsize=(12, 12))
+    plt.plot(means['round'], means['total_reward'], label='total_reward', color='green')
+    plt.plot(means['round'], means['red_reward'], label='red_reward', color='red')
+    plt.plot(means['round'], means['blue_reward'], label='blue_reward', color='blue')
+    plt.grid(True)
+    plt.legend(loc='best')
+    plt.xlabel('Round')
+    plt.ylabel('Mean Reward')
+    plt.title(f'Population Size: {self.N}, Subpopulations: {self.d}, Migration Count: {count}, timesteps/round:{timesteps}')
+    plt.savefig(f'{self.save_path}/{self.save_name}.png')
+    return 1
 
   def make_summary_file(self):
     # create file in director
