@@ -59,6 +59,13 @@ class Player():
            else:
                print(f"Directory '{self.save_path + player_color}' already exists.")
                pass
+
+           if not os.path.exists(self.save_path + player_color + f'/{self.population}'):
+               os.makedirs(self.save_path + player_color + f'/{self.population}')
+               print(f"Directory '{self.save_path + player_color + f'/{self.population}'}' created.")
+           else:
+               print(f"Directory '{self.save_path + player_color + f'/{self.population}'}' already exists.")
+
        return 1
 
 
@@ -116,6 +123,7 @@ class DQNPlayer(Player):
         # Decaying epsilon
 
         if eval_mode:
+          action = self.qf(obs).argmax()
           return action.detach().cpu().item()
 
         self.epsilon *= self.epsilon_decay
@@ -130,14 +138,14 @@ class DQNPlayer(Player):
           return action.detach().cpu().item()
    
     def save_network(self):
-        torch.save(self.qf.state_dict(), f'{self.save_path}/{self.color}/DQN_Player_{self.player_id}_VF_SD.csv')
+        torch.save(self.qf.state_dict(), f'{self.save_path}/{self.color}/{self.population}/DQN_Player_{self.player_id}_VF_SD.csv')
         return 1
 
     def save_policy(self, df2, cols=['A1', 'A2', 'A3', 'A4']):
       df = df2.copy()
 
       df[cols]  = df.apply(lambda row: self.qf(torch.Tensor(row.values)).detach().numpy(), axis=1, result_type='expand')
-      df.to_csv(f'{self.save_path}/{self.color}/DQN_Player_{self.player_id}_VF.csv')
+      df.to_csv(f'{self.save_path}/{self.color}/{self.population}/DQN_Player_{self.player_id}_VF.csv')
 
       print("Player Info Saved")
       return 1
@@ -338,8 +346,8 @@ class PPOPlayer(Player):
        return 1
 
    def save_network(self):
-       torch.save(self.policy.state_dict(), f'{self.save_path}/{self.color}/PPO_Player_{self.player_id}_PN_SD.csv')
-       torch.save(self.vf.state_dict(), f'{self.save_path}/{self.color}/PPO_Player_{self.player_id}_VF_SD.csv')
+       torch.save(self.policy.state_dict(), f'{self.save_path}/{self.color}/{self.population}/PPO_Player_{self.player_id}_PN_SD.csv')
+       torch.save(self.vf.state_dict(), f'{self.save_path}/{self.color}/{self.population}/PPO_Player_{self.player_id}_VF_SD.csv')
        return 1
 
    def save_policy(self, df2, cols=['A1', 'A2', 'A3', 'A4']):
@@ -347,7 +355,7 @@ class PPOPlayer(Player):
       df[cols] = df.apply(lambda row: self.policy(torch.Tensor(row))[2].detach().numpy(), axis=1, result_type='expand')
       df[cols] = np.exp(df[cols])
       df[cols] = df[cols]/np.sum(df[cols], axis=0)
-      df.to_csv(f'{self.save_path}/{self.color}/PPO_Player_{self.player_id}_PN.csv')
+      df.to_csv(f'{self.save_path}/{self.color}/{self.population}/PPO_Player_{self.player_id}_PN.csv')
       print("Player Info Saved")
 
       return 1
