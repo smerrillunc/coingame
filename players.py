@@ -5,8 +5,7 @@ from collections import namedtuple, deque
 from itertools import count
 import pandas as pd
 import numpy as np
-import jax.numpy as jnp
-
+import os
 from sklearn.utils import shuffle
 import torch.optim as optim
 from memoryBuffers import ReplayBuffer, Buffer
@@ -26,31 +25,41 @@ class Player():
 
   This class will also provide a way to update player policies.
   """
+  def __init__(self,
+                   color,
+                   population,
+                   obs_dim,
+                   act_dim,
+                   act_limit=1.0,
+                   device="cpu",
+                   player_id=None,
+                   save_path='/'):
 
-  def __init__(self, 
-  			   color,
-  			   population, 
-  			   obs_dim, 
-  			   act_dim, 
-  			   act_limit=1.0,
-  			   device="cpu", 
-  			   player_id=None, 
-  			   save_path='/'):
+        # generate random player id if not passed
+        if player_id == None:
+          self.player_id = np.random.randint(0, 1000000)
+        else:
+          self.player_id = player_id
 
-    # generate random player id if not passed
-    if player_id == None:
-      self.player_id = jnp.random.randint(0, 1000000)
-    else:
-      self.player_id = player_id
+        self.obs_dim = obs_dim
+        self.act_dim = act_dim
+        self.act_limit = act_limit
 
-    self.obs_dim = obs_dim
-    self.act_dim = act_dim
-    self.act_limit = act_limit
+        self.color = color
+        self.population = population
+        self.device = device
+        self.save_path = save_path
+        self.configure_save_path()
 
-    self.color = color
-    self.population = population
-    self.device = device
-    self.save_path = save_path
+  def configure_save_path(self):
+       for player_color in ['/r', '/b']:
+           if not os.path.exists(self.save_path + player_color):
+               os.makedirs(self.save_path + player_color)
+               print(f"Directory '{self.save_path + player_color}' created.")
+           else:
+               print(f"Directory '{self.save_path + player_color}' already exists.")
+               pass
+       return 1
 
 
 class DQNPlayer(Player):
@@ -112,23 +121,23 @@ class DQNPlayer(Player):
         self.epsilon *= self.epsilon_decay
         self.epsilon = max(self.epsilon, 0.01)
 
-        if jnp.random.rand() <= self.epsilon:
+        if np.random.rand() <= self.epsilon:
           # Choose a random action with probability epsilon
-          return jnp.random.randint(self.act_dim)
+          return np.random.randint(self.act_dim)
         else:
           # Choose the action with highest Q-value at the current state
           action = self.qf(obs).argmax()
           return action.detach().cpu().item()
    
     def save_network(self):
-        torch.save(self.qf.state_dict(), f'{self.save_path}/DQN_Player_{self.player_id}_VF_SD.csv')
+        torch.save(self.qf.state_dict(), f'{self.save_path}/{self.color}/DQN_Player_{self.player_id}_VF_SD.csv')
         return 1
 
     def save_policy(self, df2, cols=['A1', 'A2', 'A3', 'A4']):
       df = df2.copy()
 
       df[cols]  = df.apply(lambda row: self.qf(torch.Tensor(row.values)).detach().numpy(), axis=1, result_type='expand')
-      df.to_csv(f'{self.save_path}/DQN_Player_{self.player_id}_VF.csv')
+      df.to_csv(f'{self.save_path}/{self.color}/DQN_Player_{self.player_id}_VF.csv')
 
       print("Player Info Saved")
       return 1
@@ -145,13 +154,6 @@ class DQNPlayer(Player):
         rews = batch['rews']
         done = batch['done']
 
-        if 0: # Check shape of experiences
-          print("obs1", obs1.shape)
-          print("obs2", obs2.shape)
-          print("acts", acts.shape)
-          print("rews", rews.shape)
-          print("done", done.shape)
-
         # Prediction Q(s)
         q = self.qf(obs1).gather(1, acts.long()).squeeze(1)
         
@@ -167,9 +169,6 @@ class DQNPlayer(Player):
         q_backup = rews + self.gamma*(1-done)*q_target.max(1)[0]
         q_backup.to(self.device)
 
-        if 0: # Check shape of prediction and target
-          print("q", q.shape)
-          print("q_backup", q_backup.shape)
 
         # Update perdiction network parameter
         qf_loss = F.mse_loss(q, q_backup.detach())
@@ -255,7 +254,7 @@ class PPOPlayer(Player):
         action = action.detach().cpu().numpy().flatten()
 
         # softmax to convert to provs
-        return jnp.random.choice(range(0, self.act_dim), p=jnp.exp(action)/sum(jnp.exp(action)))
+        return np.random.choice(range(0, self.act_dim), p=np.exp(action)/sum(np.exp(action)))
 
 
    def compute_vf_loss(self, obs, ret, v_old):
@@ -339,16 +338,16 @@ class PPOPlayer(Player):
        return 1
 
    def save_network(self):
-       torch.save(self.policy.state_dict(), f'{self.save_path}/PPO_Player_{self.player_id}_PN_SD.csv')
-       torch.save(self.vf.state_dict(), f'{self.save_path}/PPO_Player_{self.player_id}_VF_SD.csv')
+       torch.save(self.policy.state_dict(), f'{self.save_path}/{self.color}/PPO_Player_{self.player_id}_PN_SD.csv')
+       torch.save(self.vf.state_dict(), f'{self.save_path}/{self.color}/PPO_Player_{self.player_id}_VF_SD.csv')
        return 1
 
    def save_policy(self, df2, cols=['A1', 'A2', 'A3', 'A4']):
       df = df2.copy()
       df[cols] = df.apply(lambda row: self.policy(torch.Tensor(row))[2].detach().numpy(), axis=1, result_type='expand')
-      df[cols] = jnp.exp(df[cols])
-      df[cols] = df[cols]/jnp.sum(df[cols], axis=0)
-      df.to_csv(f'{self.save_path}/PPO_Player_{self.player_id}_PN.csv')
+      df[cols] = np.exp(df[cols])
+      df[cols] = df[cols]/np.sum(df[cols], axis=0)
+      df.to_csv(f'{self.save_path}/{self.color}/PPO_Player_{self.player_id}_PN.csv')
       print("Player Info Saved")
 
       return 1

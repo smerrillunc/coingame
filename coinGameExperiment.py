@@ -77,8 +77,10 @@ class CoinGameExperiment():
 
     # setup the environment according to options passed    
     self.env = env_dict['env'](**env_dict['env_options'])
+
     self.n = env_dict['env_options']['grid_shape'][0]
     self.n_coins = env_dict['env_options']['n_coins']
+    self.coin_payoffs = env_dict['env_options']['coin_payoffs']
 
     # setup population params    
     self.N = population_dict["N"]
@@ -482,6 +484,7 @@ class CoinGameExperiment():
 
       file.write(f'grid:({self.n}, {self.n})\n')
       file.write(f'n_coins:{self.n_coins}\n')
+      file.write(f'payoffs:{self.coin_payoffs}\n')
 
       if self.player_dict['player_class'] == PPOPlayer:
         file.write(f'player_class: PPOPlayer\n')

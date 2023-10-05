@@ -13,6 +13,7 @@ import pandas as pd
 import numpy as np
 from sklearn.utils import shuffle
 import unittest
+import gc
 
 # set up matplotlib
 is_ipython = 'inline' in matplotlib.get_backend()
@@ -37,7 +38,7 @@ import coinGameExperiment
 
 from datetime import datetime
 
-"""PPO Test"""
+"""DQN Test"""
 # environment settings
 n = 3
 
@@ -95,7 +96,7 @@ player_dict = {'player_class':PPOPlayer,
                'player_model_params':ppo_model_params}
 
 rounds = 100
-timesteps = 1000
+timesteps = 500
 count = 0
 
 # N, d tuples
@@ -104,31 +105,50 @@ population_search = [
                     #(20, 2),
                     (24, 4),
                     #(24, 6),
-                    (60, 2),
-                    (100, 5),
-                    (100, 10),
+                    #(60, 2),
+#                    (100, 5),
+#                    (100, 10),
                     #(1000, 2),
                     #(1000, 5),
                     #(1000, 10)
 ]
 
-for N, d in population_search:
-    print(N, d)
-    ## Population Settings
-    population_dict = {'N':N,
-                        'd':d}
+# b large relative to c
+# b small relative to c
+# c 0, b negative
+coin_payoffs = [
+                        np.array([[1, 0], [0, -10]], dtype=np.float_),
+                        np.array([[1, 0], [1, -10]], dtype=np.float_),
+                        np.array([[10, 0], [1, -1]], dtype=np.float_),
+                        np.array([[5, 0], [1, -1]], dtype=np.float_),
+                        np.array([[0.2, 0], [1, -1]], dtype=np.float_),
+                        np.array([[0, 1], [-1, -1]], dtype=np.float_),
+                        np.array([[1, 0], [-1, -1]], dtype=np.float_),
+]
 
-    experiment = coinGameExperiment.CoinGameExperiment(env_dict=env_dict,
-                                                       population_dict=population_dict,
-                                                       player_dict=player_dict,
-                                                       device=device,
-                                                       save_name='ppo')
 
-    total_games = rounds*N/2
-    total_timesteps = total_games * timesteps
-    print(f'Starting timesteps:{timesteps}, rounds:{rounds}, N:{N}, d:{d}, PPO')
-    print(f'Total Games: {total_games}, Total Timesteps {total_timesteps}')
-    start = datetime.now()
-    print(start)
-    ppo_df, dqn_players, dqn_players_df = experiment.play_multi_rounds(rounds, timesteps, count)
-    print(datetime.now()-start)
+for coin_payoff in coin_payoffs:
+    env_options['coin_payoffs'] = coin_payoff
+    print(env_dict)
+    for N, d in population_search:
+        print(N, d)
+        ## Population Settings
+        population_dict = {'N':N,
+                            'd':d}
+
+        experiment = coinGameExperiment.CoinGameExperiment(env_dict=env_dict,
+                                                           population_dict=population_dict,
+                                                           player_dict=player_dict,
+                                                           device=device,
+                                                           save_name='ppo')
+
+        total_games = rounds*N/2
+        total_timesteps = total_games * timesteps
+        print(f'Starting timesteps:{timesteps}, rounds:{rounds}, N:{N}, d:{d}, PPO')
+        print(f'Total Games: {total_games}, Total Timesteps {total_timesteps}')
+        start = datetime.now()
+        print(start)
+        ppo_df, dqn_players, dqn_players_df = experiment.play_multi_rounds(rounds, timesteps, count)
+        print(datetime.now()-start)
+        del experiment
+        gc.collect()
