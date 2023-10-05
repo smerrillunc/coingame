@@ -73,7 +73,7 @@ class CoinGameExperiment():
                device, 
                save_policy=False,
                save_path=r'/Users/scottmerrill/Documents/UNC/Research/coingame/data/',
-               save_name='ppo'):
+               save_name='results'):
 
     # setup the environment according to options passed    
     self.env = env_dict['env'](**env_dict['env_options'])

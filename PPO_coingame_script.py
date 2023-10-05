@@ -80,7 +80,6 @@ ppo_model_params = [#actor network
 ppo_player_options = {'steps':0,
                     'gamma':0.99,
                     'lam':0.97,
-                    'hidden_sizes':(2*4*n**2,4*n**2),
                     'sample_size':100,
                     'train_policy_iters':80,
                     'train_vf_iters':80,

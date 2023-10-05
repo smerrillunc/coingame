@@ -239,7 +239,7 @@ class PPOPlayer(Player):
       
       # Main network
       self.policy = actor_model(**actor_model_params).to(self.device)
-      self.vf = critic_model(self.obs_dim, 1, activation=torch.tanh).to(self.device)
+      self.vf = critic_model(**critic_model_params).to(self.device)
       
       # Create optimizers
       self.policy_optimizer = optim.Adam(self.policy.parameters(), lr=self.policy_lr)
