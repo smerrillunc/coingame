@@ -40,13 +40,9 @@ import logging
 import sys
 import matplotlib.pyplot as plt
 
-
-#### TO DO:
-# 1. store meta data on time per round
-# 2. store meta data on experiment params
-
-
-
+sys.path.append('/Users/scottmerrill/Documents/UNC/Research/coingame/evoenv')
+from evoenv.envs.coin_game import CoinGame
+from evoenv.envs.enumerated_stochastic_game import EnumeratedStochasticGame, MatrixGame
 
 
 
@@ -77,10 +73,15 @@ class CoinGameExperiment():
 
     # setup the environment according to options passed    
     self.env = env_dict['env'](**env_dict['env_options'])
+    self.act_dim = env_dict['env_description']['act_dim']
+    self.obs_dim = env_dict['env_description']['obs_dim']
 
-    self.n = env_dict['env_options']['grid_shape'][0]
-    self.n_coins = env_dict['env_options']['n_coins']
-    self.coin_payoffs = env_dict['env_options']['coin_payoffs']
+    if not hasattr(self.env, "GRID_ACTIONS"):
+      self.env.GRID_ACTIONS = {0:"C",1: "D"}
+
+    self.n = env_dict['env_options'].get('grid_shape', (2,2))[0]
+    self.n_coins = env_dict['env_options'].get('n_coins', 1)
+    self.coin_payoffs = env_dict['env_options'].get('coin_payoffs', [0, 0])
 
     # setup population params    
     self.N = population_dict["N"]
@@ -143,12 +144,19 @@ class CoinGameExperiment():
     state, actions = env.reset()
 
     # take the first np array from state and convert to tensor
-    state = torch.tensor(state[0], dtype=torch.float32, device=device).flatten().unsqueeze(0)
+    if isinstance(state, tuple):
+      state = torch.tensor(state[0], dtype=torch.float32, device=device).flatten().unsqueeze(0)
+    else:
+      state = torch.tensor(state, dtype=torch.float32, device=device).flatten().unsqueeze(0)
+
+    # if it's not assume state is already an integer value returned from enumerated stochastic env
 
     # possible actions
-    action_space = list(env.GRID_ACTIONS.keys())
+    #action_space = [x for x in range(0, self.act_dim)]
 
     # map these actions to numeric moves
+    # for grid world
+    action_space = list(env.GRID_ACTIONS.keys())
     action_map = {x:list(action_space)[x] for x in range(len(action_space))}
 
     blue_distance, red_distance, coin_color = CoinGameExperiment.get_player_distance(env)
@@ -165,7 +173,11 @@ class CoinGameExperiment():
 
           # take a step in the environment (for this env we need to map numeric
           # actions to "U, D, L or R")
-          observation, _, rewards, _ = env.step(list(map(lambda x: action_map[x], actions)))
+          # for grid world
+          observation, _, rewards, _ = env.step(tuple(map(lambda x: action_map[x], actions)))
+
+          # for matrix world we don't need to do this
+          #observation, _, rewards, _ = env.step(actions)
 
           # Coin was collected
           if np.abs(rewards).sum() > 0:
@@ -197,7 +209,13 @@ class CoinGameExperiment():
             # get red and blue distances again for new boardstate
             blue_distance, red_distance, coin_color = CoinGameExperiment.get_player_distance(env)
 
-          next_state = torch.tensor(observation[0], dtype=torch.float32, device=device).flatten().unsqueeze(0)
+          # ensure compatability if state is ndarray or scalar
+          if isinstance(observation, tuple):
+            observation = torch.tensor(observation[0], dtype=torch.float32, device=device).flatten().unsqueeze(0)
+          else:
+            observation = torch.tensor(observation, dtype=torch.float32, device=device).flatten().unsqueeze(0)
+
+          next_state = observation
 
           # update experience replay memory and update policies
           # question do we need to store actions/rewards of all players if we're selfish
@@ -338,8 +356,15 @@ class CoinGameExperiment():
       red_distance:: the distance the blue player is from the coin
       coin_color: the color of the coin
     """
-
     state = env._state
+
+    # no metric of distance in matrix 1 step games
+    if isinstance(env, EnumeratedStochasticGame):
+      if state == 0:
+        coin_color = 'b'
+      else:
+        coin_color = 'r'
+      return 0, 0, coin_color
 
     # if state[2] is not all zeros it's a blue coin
     if state[2].sum() != 0:

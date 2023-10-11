@@ -67,7 +67,7 @@ class CategoricalPolicy(MLP):
                  output_size,
                  output_limit=1.0,
                  hidden_sizes=(64,64),
-                 activation=torch.tanh,
+                 activation=torch.sigmoid,
     ):
         super(CategoricalPolicy, self).__init__(
             input_size=input_size,
