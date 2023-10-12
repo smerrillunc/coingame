@@ -68,7 +68,6 @@ class CoinGameExperiment():
                player_dict, 
                device, 
                save_policy=False,
-               save_path=r'/Users/scottmerrill/Documents/UNC/Research/coingame/data/',
                save_name='results'):
 
     # setup the environment according to options passed    
@@ -94,7 +93,7 @@ class CoinGameExperiment():
     self.save_policy = save_policy
 
     # Define the directory path with the current date as the name
-    self.save_path = CoinGameExperiment.configure_save_directory(save_path)
+    self.save_path = CoinGameExperiment.configure_save_directory(player_dict['base_player_options']['save_path'])
     player_dict['base_player_options']['save_path'] = self.save_path
 
     # also updare base player options with environment descriptions (state, action, etc.)

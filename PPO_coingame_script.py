@@ -57,7 +57,7 @@ env_dict = {'env':env,
 
 
 # player settings
-base_player_options = {'save_path': r'/Users/scottmerrill/Documents/UNC/Research/coingame/data/'}
+base_player_options = {'save_path': r'/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/'}
 ppo_models = [{'actor_model':CategoricalPolicy,
                'critic_model':MLP},
 

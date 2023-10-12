@@ -31,6 +31,7 @@ sys.path.append('/Users/scottmerrill/Documents/UNC/Research/coingame/evoenv')
 import evoenv
 from evoenv.envs.coin_game import CoinGame
 from evoenv.envs.enumerated_stochastic_game import EnumeratedStochasticGame, MatrixGame
+
 from players import PPOPlayer, DQNPlayer
 from population import Population
 from networks import MLP, GaussianPolicy, CategoricalPolicy
@@ -39,7 +40,7 @@ import coinGameExperiment
 
 from datetime import datetime
 
-# environment settings
+"""DQN Test"""
 
 def generate_two_state_game(c, b):
     # defining rewards
@@ -75,6 +76,7 @@ def generate_two_state_game(c, b):
     }
     return rewards
 
+# environment settings
 n = 3
 
 # defining this stochastic games
@@ -93,42 +95,24 @@ env_dict = {'env':env,
 
 
 # player settings
-base_player_options = {'save_path': r'/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO'}
-ppo_models = [{'actor_model':CategoricalPolicy,
-               'critic_model':MLP},
+base_player_options = {'save_path': r'/Users/scottmerrill/Documents/UNC/Research/coingame/data/DQN/'}
+dqn_model = [{'model':MLP}]
 
-              {'actor_model':CategoricalPolicy,
-              'critic_model':MLP}]
-
-ppo_model_params = [#actor network
-                    {'input_size':1,
+dqn_model_params = [
+                    {'input_size':1, \
                     'output_size':2,
                     'output_limit':1.0,
                     'hidden_sizes':(64,),
-                    'activation':torch.relu},
-
-                    # critic network
-                    {'input_size':1,
-                    'output_size':1,
-                    'hidden_sizes':(64, ),
                     'activation':torch.relu}]
 
-ppo_player_options = {'steps':0,
-                    'gamma':0.99,
-                    'lam':0.97,
-                    'sample_size':100,
-                    'train_policy_iters':80,
-                    'train_vf_iters':80,
-                    'clip_param':0.1,
-                    'target_kl':0.01,
-                    'policy_lr':1e-3,
-                    'vf_lr':1e-3}
+dqn_player_options = {}
 
-player_dict = {'player_class':PPOPlayer,
+player_dict = {'player_class':DQNPlayer,
                'base_player_options':base_player_options,
-               'additional_player_options':ppo_player_options,
-               'player_models':ppo_models,
-               'player_model_params':ppo_model_params}
+               'additional_player_options':dqn_player_options,
+               'player_models':dqn_model,
+               'player_model_params':dqn_model_params}
+
 
 # setting total timesteps to 200k or 100k/state
 rounds = 100
@@ -159,7 +143,7 @@ for c, b in cb_vals:
 
         total_games = rounds*N/2
         total_timesteps = total_games * timesteps
-        print(f'Starting timesteps:{timesteps}, rounds:{rounds}, N:{N}, d:{d}, PPO')
+        print(f'Starting timesteps:{timesteps}, rounds:{rounds}, N:{N}, d:{d}, DQN')
         print(f'Total Games: {total_games}, Total Timesteps {total_timesteps}')
         start = datetime.now()
         print(start)
