@@ -95,7 +95,7 @@ env_dict = {'env':env,
 
 
 # player settings
-base_player_options = {'save_path': r'/Users/scottmerrill/Documents/UNC/Research/coingame/data/DQN/'}
+base_player_options = {}
 dqn_model = [{'model':MLP}]
 
 dqn_model_params = [
@@ -115,7 +115,7 @@ player_dict = {'player_class':DQNPlayer,
 
 
 # setting total timesteps to 200k or 100k/state
-rounds = 100
+rounds = 20
 timesteps = 200
 count = 0
 
@@ -139,7 +139,8 @@ for c, b in cb_vals:
         experiment = coinGameExperiment.CoinGameExperiment(env_dict=env_dict,
                                                            population_dict=population_dict,
                                                            player_dict=player_dict,
-                                                           device=device)
+                                                           device=device,
+                                                           save_path=r'/Users/scottmerrill/Documents/UNC/Research/coingame/data/DQN/')
 
         total_games = rounds*N/2
         total_timesteps = total_games * timesteps

@@ -93,7 +93,7 @@ env_dict = {'env':env,
 
 
 # player settings
-base_player_options = {'save_path': r'/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO'}
+base_player_options = {}
 ppo_models = [{'actor_model':CategoricalPolicy,
                'critic_model':MLP},
 
@@ -131,7 +131,7 @@ player_dict = {'player_class':PPOPlayer,
                'player_model_params':ppo_model_params}
 
 # setting total timesteps to 200k or 100k/state
-rounds = 100
+rounds = 20
 timesteps = 200
 count = 0
 
@@ -155,7 +155,8 @@ for c, b in cb_vals:
         experiment = coinGameExperiment.CoinGameExperiment(env_dict=env_dict,
                                                            population_dict=population_dict,
                                                            player_dict=player_dict,
-                                                           device=device)
+                                                           device=device,
+                                                           save_path=r'/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/')
 
         total_games = rounds*N/2
         total_timesteps = total_games * timesteps
