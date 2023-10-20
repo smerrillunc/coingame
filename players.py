@@ -30,6 +30,7 @@ class Player():
                    population,
                    obs_dim,
                    act_dim,
+                   memory=1,
                    act_limit=1.0,
                    device="cpu",
                    player_id=None,
@@ -41,6 +42,7 @@ class Player():
         else:
           self.player_id = player_id
 
+        self.memory = memory
         self.obs_dim = obs_dim
         self.act_dim = act_dim
         self.act_limit = act_limit

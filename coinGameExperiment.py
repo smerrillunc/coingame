@@ -3,6 +3,8 @@ import random
 import matplotlib
 import matplotlib.pyplot as plt
 from itertools import count
+from collections import deque
+from itertools import chain
 
 import torch
 import torch.nn as nn
@@ -112,6 +114,17 @@ class CoinGameExperiment():
                                  N=self.N,
                                  d=self.d)
 
+  @staticmethod
+  def convert_state(state):
+    """
+    Description: Checks the type of state and converts it to a flattened numpy
+    numpy array
+    """
+    if isinstance(state, tuple):
+      state = state[0].flatten()
+    else:
+      state = np.array([state])
+    return state
 
   ###############################
   ###### GAME PLAY METHODS ######
@@ -143,14 +156,21 @@ class CoinGameExperiment():
     # add this later...
     state, actions = env.reset()
 
-    # take the first np array from state and convert to tensor
-    if isinstance(state, tuple):
-      state = torch.tensor(state[0], dtype=torch.float32, device=device).flatten().unsqueeze(0)
-    else:
-      state = torch.tensor(state, dtype=torch.float32, device=device).flatten().unsqueeze(0)
+    # convert state to numpy array
+    state = CoinGameExperiment.convert_state(state)
+
+    # state queue.  The first list in the queue corresponds to
+    # the current state.  The remaining lists refer to the previous states
+    # note that the previous states are of size len(actions) longer than the current active state.
+
+    memory = players[0].memory
+    prev_states = deque(maxlen=memory)
+    # initialize state queue for previous states
+    for i in range(memory):
+      prev_states.append([0 for x in range(len(state) + len(players))])
+
 
     # if it's not assume state is already an integer value returned from enumerated stochastic env
-
     # possible actions
     #action_space = [x for x in range(0, self.act_dim)]
 
@@ -166,9 +186,16 @@ class CoinGameExperiment():
     for i in range(timesteps):
           actions = []
 
+          # The full state is a flattened vector of the current state and (previous state, a0, a1) tuples
+          # depending on the setting for memory this can be multiple
+          state_full = np.concatenate([np.array(state).flatten(), np.array(list(chain.from_iterable(prev_states)))])
+
+          # convert this to tensor
+          state_full = torch.tensor(state_full, dtype=torch.float32, device=device).unsqueeze(0)
+
           # select an action for each player
           for player in players:
-            action = player.select_action(state)
+            action = player.select_action(state_full)
             actions.append(action)
 
           # take a step in the environment (for this env we need to map numeric
@@ -176,8 +203,10 @@ class CoinGameExperiment():
           # for grid world
           observation, _, rewards, _ = env.step(tuple(map(lambda x: action_map[x], actions)))
 
-          # for matrix world we don't need to do this
-          #observation, _, rewards, _ = env.step(actions)
+          # dequeou oldest prev_state in memory and add newest one now that we have action pairs
+          prev_states.pop()
+          prev_states.insert(0, np.append(state, actions))
+
 
           # Coin was collected
           if np.abs(rewards).sum() > 0:
@@ -209,13 +238,8 @@ class CoinGameExperiment():
             # get red and blue distances again for new boardstate
             blue_distance, red_distance, coin_color = CoinGameExperiment.get_player_distance(env)
 
-          # ensure compatability if state is ndarray or scalar
-          if isinstance(observation, tuple):
-            observation = torch.tensor(observation[0], dtype=torch.float32, device=device).flatten().unsqueeze(0)
-          else:
-            observation = torch.tensor(observation, dtype=torch.float32, device=device).flatten().unsqueeze(0)
-
-          next_state = observation
+          # convert observation to flattened numpy array
+          observation = CoinGameExperiment.convert_state(observation)
 
           # update experience replay memory and update policies
           # question do we need to store actions/rewards of all players if we're selfish
@@ -224,16 +248,16 @@ class CoinGameExperiment():
             player.steps += 1
 
             # can be different depending on player type
-            player.add_experience(state,
+            player.add_experience(state_full,
                                  actions[idx],
                                  rewards[idx],
-                                  next_state,
+                                  torch.torch.tensor(observation, dtype=torch.float32, device=device).flatten().unsqueeze(0),
                                   done=False)
             # Will only acutally train when the number of experience is equal to sample size for PPO player
             # and when the number of experience is greater than batch_size for dqn player
             player.train_model()
           # set state to next state
-          state = next_state
+          state = observation
 
     return env, players, df
 

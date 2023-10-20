@@ -79,13 +79,20 @@ def generate_two_state_game(c, b):
 # environment settings
 n = 3
 
+states = 1
+players_per_game = 2
+memory = 1
+# input size, we need an additional state for every memory lookback
+# we also are appending to the state each players action
+input_size = states + (states + players_per_game) * (memory)
+
 # defining this stochastic games
 env = EnumeratedStochasticGame
 env_options = {'rewards':generate_two_state_game(1, 1),}
 
 
 # two states, but returned as a single scalar (0 or 1), two actions
-env_description = {'obs_dim':1,
+env_description = {'obs_dim':input_size,
                    'act_dim':2,
                    'act_limit':1}
 
@@ -95,11 +102,12 @@ env_dict = {'env':env,
 
 
 # player settings
-base_player_options = {}
+base_player_options = {'memory':memory}
+
 dqn_model = [{'model':MLP}]
 
 dqn_model_params = [
-                    {'input_size':1, \
+                    {'input_size':input_size, \
                     'output_size':2,
                     'output_limit':1.0,
                     'hidden_sizes':(64,),
@@ -121,11 +129,11 @@ count = 0
 
 # N, d tuples
 population_search = []
-for N in [20, 40, 60, 80, 100]:
+for N in [100]:
     population_search.extend([(N, 2), (N, int(N/2))])
 
 
-cb_vals = [(1, 1),(5, 1),(1, 5),(0, 1),(1,0)]
+cb_vals = [(1, 1), (1, 5), (5,1), (1, 0), (0, 1)]
 
 for c, b in cb_vals:
     env_options['rewards'] = generate_two_state_game(c, b)
