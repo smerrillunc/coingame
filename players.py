@@ -34,6 +34,7 @@ class Player():
                    act_limit=1.0,
                    device="cpu",
                    player_id=None,
+                   configure_save_path=True,
                    save_path='/'):
 
         # generate random player id if not passed
@@ -51,7 +52,9 @@ class Player():
         self.population = population
         self.device = device
         self.save_path = save_path
-        self.configure_save_path()
+
+        if configure_save_path:
+            self.configure_save_path()
 
   def configure_save_path(self):
        for player_color in ['/r', '/b']:
