@@ -126,6 +126,18 @@ class CoinGameExperiment():
       state = np.array([state])
     return state
 
+  @staticmethod
+  def make_one_hot_dict(num_actions = 4):
+    """
+    Description: This method returns a dictionary of one hot encodings
+    """
+    one_hot_dict = {}
+    for x in range(0, num_actions):
+      one_hot_dict[x] = [0 for y in range(0, num_actions)]
+      one_hot_dict[x][x] = 1
+    return one_hot_dict
+
+
   ###############################
   ###### GAME PLAY METHODS ######
   ###############################
@@ -159,16 +171,6 @@ class CoinGameExperiment():
     # convert state to numpy array
     state = CoinGameExperiment.convert_state(state)
 
-    # state queue.  The first list in the queue corresponds to
-    # the current state.  The remaining lists refer to the previous states
-    # note that the previous states are of size len(actions) longer than the current active state.
-
-    memory = players[0].memory
-    prev_states = deque(maxlen=memory)
-    # initialize state queue for previous states
-    for i in range(memory):
-      prev_states.append([0 for x in range(len(state) + len(players))])
-
 
     # if it's not assume state is already an integer value returned from enumerated stochastic env
     # possible actions
@@ -178,6 +180,16 @@ class CoinGameExperiment():
     # for grid world
     action_space = list(env.GRID_ACTIONS.keys())
     action_map = {x:list(action_space)[x] for x in range(len(action_space))}
+    one_hot_dict = CoinGameExperiment.make_one_hot_dict(len(action_space))
+
+    # state queue.  The first list in the queue corresponds to
+    # the current state.  The remaining lists refer to the previous states
+    # note that the previous states are of size len(actions) longer than the current active state.
+    memory = players[0].memory
+    prev_states = deque(maxlen=memory)
+    # initialize state queue for previous states
+    for i in range(memory):
+      prev_states.append([0 for x in range(len(state) + len(players)*len(action_space))])
 
     blue_distance, red_distance, coin_color = CoinGameExperiment.get_player_distance(env)
 
@@ -193,9 +205,12 @@ class CoinGameExperiment():
           # convert this to tensor
           state_full = torch.tensor(state_full, dtype=torch.float32, device=device).unsqueeze(0)
 
+          one_hot_actions = []
+
           # select an action for each player
           for player in players:
             action = player.select_action(state_full)
+            one_hot_actions.append(one_hot_dict[action])
             actions.append(action)
 
           # take a step in the environment (for this env we need to map numeric
@@ -205,8 +220,7 @@ class CoinGameExperiment():
 
           # dequeou oldest prev_state in memory and add newest one now that we have action pairs
           prev_states.pop()
-          prev_states.insert(0, np.append(state, actions))
-
+          prev_states.insert(0, np.append(state, one_hot_actions))
 
           # Coin was collected
           if np.abs(rewards).sum() > 0:

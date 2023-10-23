@@ -78,13 +78,14 @@ def generate_two_state_game(c, b):
 
 # environment settings
 n = 3
-
-states = 1
+state_space = 1
+actions_space = 2
 players_per_game = 2
-memory = 1
+
+memory = 2
 # input size, we need an additional state for every memory lookback
 # we also are appending to the state each players action
-input_size = states + (states + players_per_game) * (memory)
+input_size = state_space + (state_space + players_per_game*actions_space) * (memory)
 
 # defining this stochastic games
 env = EnumeratedStochasticGame
@@ -93,7 +94,7 @@ env_options = {'rewards':generate_two_state_game(1, 1),}
 
 # two states, but returned as a single scalar (0 or 1), two actions
 env_description = {'obs_dim':input_size,
-                   'act_dim':2,
+                   'act_dim':actions_space,
                    'act_limit':1}
 
 env_dict = {'env':env,
@@ -108,7 +109,7 @@ dqn_model = [{'model':MLP}]
 
 dqn_model_params = [
                     {'input_size':input_size, \
-                    'output_size':2,
+                    'output_size':actions_space,
                     'output_limit':1.0,
                     'hidden_sizes':(64,),
                     'activation':torch.relu}]
@@ -123,17 +124,17 @@ player_dict = {'player_class':DQNPlayer,
 
 
 # setting total timesteps to 200k or 100k/state
-rounds = 20
-timesteps = 200
+rounds = 25
+timesteps = 250
 count = 0
 
 # N, d tuples
 population_search = []
-for N in [100]:
+for N in [40]:
     population_search.extend([(N, 2), (N, int(N/2))])
 
 
-cb_vals = [(1, 1), (1, 5), (5,1), (1, 0), (0, 1)]
+cb_vals = [(40, 1), (1, 40), (1, 0), (0, 1)]
 
 for c, b in cb_vals:
     env_options['rewards'] = generate_two_state_game(c, b)
