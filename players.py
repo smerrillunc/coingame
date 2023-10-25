@@ -364,3 +364,129 @@ class PPOPlayer(Player):
       print("Player Info Saved")
 
       return 1
+
+
+class VPGPlayer(Player):
+    """
+    An implementation of the Vanilla Policy Gradient agent,
+    with early stopping based on approximate KL.
+    """
+
+    def __init__(self,
+                 base_player_params,
+                 actor_model,
+                 actor_model_params,
+                 critic_model,
+                 critic_model_params,
+                 steps=0,
+                 gamma=0.99,
+                 lam=0.97,
+                 hidden_sizes=(64, 64),
+                 sample_size=2048,
+                 policy_lr=3e-4,
+                 vf_lr=1e-3,
+                 train_vf_iters=80,
+                 policy_losses=list(),
+                 vf_losses=list(),
+                 kls=list(),
+                 ):
+        # initialize player object params
+        super().__init__(**base_player_params)
+
+        self.steps = steps
+        self.gamma = gamma
+        self.lam = lam
+        self.hidden_sizes = hidden_sizes
+        self.sample_size = sample_size
+        self.train_vf_iters = train_vf_iters
+        self.policy_lr = policy_lr
+        self.vf_lr = vf_lr
+        self.policy_losses = policy_losses
+        self.vf_losses = vf_losses
+        self.kls = kls
+
+        # Main network
+        self.policy = actor_model(**actor_model_params).to(self.device)
+        self.vf = critic_model(**critic_model_params).to(self.device)
+
+        # Create optimizers
+        self.policy_optimizer = optim.Adam(self.policy.parameters(), lr=self.policy_lr)
+        self.vf_optimizer = optim.Adam(self.vf.parameters(), lr=self.vf_lr)
+
+        # Experience buffer
+        self.buffer = Buffer(self.obs_dim, self.act_dim, self.sample_size, self.device, self.gamma, self.lam)
+
+    def select_action(self, obs):
+        action, _, _, _ = self.policy(torch.Tensor(obs).to(self.device))
+        return action.detach().cpu().numpy().flatten()[0]
+
+    def train_model(self):
+        # Start training when the number of experience is equal to sample size
+        if self.steps == self.sample_size:
+            self.buffer.finish_path()
+            self.steps = 0
+        else:
+            # don't train
+            return
+
+        batch = self.buffer.get()
+        obs = batch['obs']
+        act = batch['act'].detach()
+        ret = batch['ret']
+        adv = batch['adv']
+
+        for _ in range(self.train_vf_iters):
+            # Prediction V(s)
+            v = self.vf(obs).squeeze(1)
+
+            # Value loss
+            vf_loss = F.mse_loss(v, ret)
+
+            self.vf_optimizer.zero_grad()
+            vf_loss.backward()
+            self.vf_optimizer.step()
+
+        # Prediction logπ(s)
+        _, _, _, log_pi_old = self.policy(obs, act, use_pi=False)
+        log_pi_old = log_pi_old.detach()
+        _, _, _, log_pi = self.policy(obs, act, use_pi=False)
+
+        # Policy loss
+        policy_loss = -(log_pi * adv).mean()
+
+        # Update policy network parameter
+        self.policy_optimizer.zero_grad()
+        policy_loss.backward()
+        self.policy_optimizer.step()
+
+        # A sample estimate for KL-divergence, easy to compute
+        approx_kl = (log_pi_old - log_pi).mean()
+
+        # Save losses
+        self.policy_losses.append(policy_loss.item())
+        self.vf_losses.append(vf_loss.item())
+        self.kls.append(approx_kl.item())
+
+    def add_experience(self, obs, action, reward, next_state, done):
+        # critic estimate
+        v = self.vf(torch.Tensor(obs).to(self.device))
+        self.buffer.add(obs, action, reward, done, v)
+        return 1
+
+    def save_network(self):
+        torch.save(self.policy.state_dict(),
+                   f'{self.save_path}/{self.color}/{self.population}/VPG_Player_{self.player_id}_PN_SD.csv')
+        torch.save(self.vf.state_dict(),
+                   f'{self.save_path}/{self.color}/{self.population}/VPG_Player_{self.player_id}_VF_SD.csv')
+        return 1
+
+    def save_policy(self, df2, cols=['A1', 'A2', 'A3', 'A4']):
+        df = df2.copy()
+        df[cols] = df.apply(lambda row: self.policy(torch.Tensor(row))[2].detach().numpy(), axis=1,
+                            result_type='expand')
+        df[cols] = np.exp(df[cols])
+        df[cols] = df[cols] / np.sum(df[cols], axis=0)
+        df.to_csv(f'{self.save_path}/{self.color}/{self.population}/VPG_Player_{self.player_id}_PN.csv')
+        print("Player Info Saved")
+
+        return 1
