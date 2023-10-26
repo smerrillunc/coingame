@@ -191,20 +191,19 @@ class CoinGameExperiment():
     for i in range(memory):
       prev_states.append([0 for x in range(len(state) + len(players)*len(action_space))])
 
+    # The full state is a flattened vector of the current state and (previous state, a0, a1) tuples
+    # depending on the setting for memory this can be multiple
+    state_full = np.concatenate([np.array(state).flatten(), np.array(list(chain.from_iterable(prev_states)))])
+
+    # convert this to tensor
+    state_full = torch.tensor(state_full, dtype=torch.float32, device=device).unsqueeze(0)
+
     blue_distance, red_distance, coin_color = CoinGameExperiment.get_player_distance(env)
 
     start_timestep = 0
     # do this loop until terminal state
     for i in range(timesteps):
           actions = []
-
-          # The full state is a flattened vector of the current state and (previous state, a0, a1) tuples
-          # depending on the setting for memory this can be multiple
-          state_full = np.concatenate([np.array(state).flatten(), np.array(list(chain.from_iterable(prev_states)))])
-
-          # convert this to tensor
-          state_full = torch.tensor(state_full, dtype=torch.float32, device=device).unsqueeze(0)
-
           one_hot_actions = []
 
           # select an action for each player
@@ -254,6 +253,8 @@ class CoinGameExperiment():
 
           # convert observation to flattened numpy array
           observation = CoinGameExperiment.convert_state(observation)
+          observation_full = np.concatenate([np.array(observation).flatten(), np.array(list(chain.from_iterable(prev_states)))])
+          observation_full = torch.torch.tensor(observation_full, dtype=torch.float32, device=device).flatten().unsqueeze(0)
 
           # update experience replay memory and update policies
           # question do we need to store actions/rewards of all players if we're selfish
@@ -265,13 +266,15 @@ class CoinGameExperiment():
             player.add_experience(state_full,
                                  actions[idx],
                                  rewards[idx],
-                                  torch.torch.tensor(observation, dtype=torch.float32, device=device).flatten().unsqueeze(0),
+                                observation_full,
                                   done=False)
             # Will only acutally train when the number of experience is equal to sample size for PPO player
             # and when the number of experience is greater than batch_size for dqn player
             player.train_model()
+
           # set state to next state
           state = observation
+          state_full = observation_full
 
     return env, players, df
 
