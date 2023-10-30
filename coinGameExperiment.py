@@ -66,10 +66,12 @@ class CoinGameExperiment():
     self.states_df = self.generate_all_states()
     self.save_policy = save_policy
 
+    self.player_dict = player_dict
+
     # Define the directory path with the current date as the name
     if save_path:
       self.save_path = CoinGameExperiment.configure_save_directory(save_path)
-      player_dict['base_player_options']['save_path'] = self.save_path
+      self.player_dict['base_player_options']['save_path'] = self.save_path
 
       # make summary file
       self.make_summary_file()
@@ -82,8 +84,7 @@ class CoinGameExperiment():
       self.save_path = None
 
     # also updare base player options with environment descriptions (state, action, etc.)
-    player_dict['base_player_options'].update(env_dict['env_description'])
-    self.player_dict = player_dict
+    self.player_dict['base_player_options'].update(env_dict['env_description'])
 
     # create population object
     self.population = Population(player_dict=player_dict,
