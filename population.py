@@ -7,8 +7,6 @@ import numpy as np
 from sklearn.utils import shuffle
 import torch.optim as optim
 
-import jax.numpy as jnp
-
 class Population():
   """
   Description: Thic class stores all functions related to creating population of players.

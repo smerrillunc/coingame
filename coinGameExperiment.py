@@ -1,35 +1,9 @@
-import math
-import random
-import matplotlib
-import matplotlib.pyplot as plt
-from itertools import count
 from collections import deque
 from itertools import chain
 
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
 import pandas as pd
 import numpy as np
-from sklearn.utils import shuffle
-import torch.optim as optim
-
-import math
-import random
-import matplotlib
-import matplotlib.pyplot as plt
-from itertools import count
-
-import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import pandas as pd
-import numpy as np
-import jax.numpy as jnp
-from sklearn.utils import shuffle
-import torch.optim as optim
 
 from population import Population
 from players import PPOPlayer, DQNPlayer
@@ -43,10 +17,7 @@ import sys
 import matplotlib.pyplot as plt
 
 sys.path.append('/Users/scottmerrill/Documents/UNC/Research/coingame/evoenv')
-from evoenv.envs.coin_game import CoinGame
 from evoenv.envs.enumerated_stochastic_game import EnumeratedStochasticGame, MatrixGame
-
-
 
 class CoinGameExperiment():
   """
@@ -68,7 +39,7 @@ class CoinGameExperiment():
                env_dict, 
                population_dict, 
                player_dict, 
-               device, 
+               device,
                save_policy=False,
                save_path=r'/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/',
                save_name='results'):
@@ -96,18 +67,23 @@ class CoinGameExperiment():
     self.save_policy = save_policy
 
     # Define the directory path with the current date as the name
-    self.save_path = CoinGameExperiment.configure_save_directory(save_path)
-    player_dict['base_player_options']['save_path'] = self.save_path
+    if save_path:
+      self.save_path = CoinGameExperiment.configure_save_directory(save_path)
+      player_dict['base_player_options']['save_path'] = self.save_path
+
+      # make summary file
+      self.make_summary_file()
+      # add logging
+      self.add_logger()
+
+    else:
+      player_dict['base_player_options']['configure_save_path'] = False
+      self.logger=None
+      self.save_path = None
 
     # also updare base player options with environment descriptions (state, action, etc.)
     player_dict['base_player_options'].update(env_dict['env_description'])
     self.player_dict = player_dict
-
-    # make summary file
-    self.make_summary_file()
-
-    # add logging
-    self.add_logger()
 
     # create population object
     self.population = Population(player_dict=player_dict,
@@ -222,7 +198,7 @@ class CoinGameExperiment():
           prev_states.insert(0, np.append(state, one_hot_actions))
 
           # Coin was collected
-          if np.abs(rewards).sum() > 0:
+          if sum([abs(x) for x in rewards]) > 0:
             # here we compute whether red or blue player was defectors and get distances
             blue_label, red_label = CoinGameExperiment.is_collaborator_defector(blue_distance, red_distance, coin_color, rewards)
 
@@ -339,7 +315,9 @@ class CoinGameExperiment():
     for round_idx in range(rounds):
       start = datetime.now()
       print(f'Round {round_idx}, Start Time {start}')
-      self.logger.info(f'Round {round_idx}, Start Time {start}')
+
+      if self.logger:
+        self.logger.info(f'Round {round_idx}, Start Time {start}')
 
       # pair players for this particular round
       player_pairs = self.population.pair_players(self.population.d,
@@ -363,20 +341,22 @@ class CoinGameExperiment():
       tmp['time_per_timestep'] = time_per_timestep
 
       df = pd.concat([df, tmp])
-      df.to_csv(f'{self.save_path}/{self.save_name}.csv')
+
+      if self.save_path:
+        df.to_csv(f'{self.save_path}/{self.save_name}.csv')
+        self.logger.info(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
 
       print(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
-      self.logger.info(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
 
+    if self.save_path:
+      self.make_plots(df, timesteps, count)
 
-    self.make_plots(df, timesteps, count)
-
-    # save the policy of each player for each state
-    for player in self.population.players:
-      _ = player.save_network()
-      if self.save_policy:
-        _ = player.save_policy(self.states_df,
-                                 cols=['A1', 'A2', 'A3', 'A4'])
+      # save the policy of each player for each state
+      for player in self.population.players:
+        _ = player.save_network()
+        if self.save_policy:
+          _ = player.save_policy(self.states_df,
+                                   cols=['A1', 'A2', 'A3', 'A4'])
 
     return df, self.population.players, self.population.players_df
 
