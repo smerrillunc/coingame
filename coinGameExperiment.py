@@ -212,6 +212,7 @@ class CoinGameExperiment():
               'blue_distance':blue_distance,
               'red_reward':rewards[1],
               'blue_reward':rewards[0],
+              'total_reward': rewards[0]+rewards[1],
               'coin_color':coin_color,
               'red_label':red_label,
               'blue_label':blue_label,

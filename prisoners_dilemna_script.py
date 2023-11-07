@@ -15,14 +15,16 @@ plt.ion()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 import sys
+import os
 
-sys.path.append('/Users/scottmerrill/Documents/UNC/Research/coingame/evoenv')
+sys.path.append(f'{os.path.dirname(os.path.abspath(__file__))}/evoenv')
+
 from evoenv.envs.enumerated_stochastic_game import EnumeratedStochasticGame, MatrixGame
 from players import PPOPlayer, DQNPlayer,  VPGPlayer
 import coinGameExperiment
 
 from datetime import datetime
-from cg_utils import section_to_dict, build_reward_matrix
+from cg_utils import section_to_dict, prisoner_dilemna_payoff
 
 import configparser
 import argparse
@@ -34,7 +36,8 @@ args = parser.parse_args()
 # Access the file name using args.filename
 file_name = args.filename
 
-config_file_path = f'configs/{file_name}'
+config_file_path = f'{os.path.dirname(os.path.abspath(__file__))}/configs/{file_name}'
+
 config = configparser.ConfigParser()
 config.read(config_file_path)
 
@@ -55,10 +58,8 @@ save_path = save_path + f'PD/{algo}/'
 state_space = int(config.get('env', 'state_space'))
 actions_space = int(config.get('env', 'actions_space'))
 players_per_game = int(config.get('env', 'players_per_game'))
-a = int(config.get('env', 'a'))
-b = int(config.get('env', 'b'))
 c = int(config.get('env', 'c'))
-d2 = int(config.get('env', 'd2'))
+b = int(config.get('env', 'b'))
 
 input_size = state_space + (state_space + players_per_game*actions_space) * (memory)
 
@@ -112,7 +113,7 @@ player_dict = {'player_class':player_class,
 # defining this stochastic games
 env = MatrixGame
 
-rewards = build_reward_matrix(a, b, c, d2)
+rewards = prisoner_dilemna_payoff(b, c)
 env_options = {'rewards':rewards}
 
 # two states, but returned as a single scalar (0 or 1), two actions

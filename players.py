@@ -327,7 +327,7 @@ class PPOPlayer(Player):
          self.policy_optimizer.zero_grad()
          policy_loss.backward()
          self.policy_optimizer.step()
-      
+
       # Train value with multiple steps of gradient descent
       for i in range(self.train_vf_iters):
          vf_loss = self.compute_vf_loss(obs, ret, v_old)

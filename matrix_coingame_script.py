@@ -15,8 +15,9 @@ plt.ion()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 import sys
+import os
+sys.path.append(f'{os.path.dirname(os.path.abspath(__file__))}/evoenv')
 
-sys.path.append('/Users/scottmerrill/Documents/UNC/Research/coingame/evoenv')
 from evoenv.envs.enumerated_stochastic_game import EnumeratedStochasticGame, MatrixGame
 from players import PPOPlayer, DQNPlayer,  VPGPlayer
 import coinGameExperiment
@@ -34,7 +35,7 @@ args = parser.parse_args()
 # Access the file name using args.filename
 file_name = args.filename
 
-config_file_path = f'configs/{file_name}'
+config_file_path = f'{os.path.dirname(os.path.abspath(__file__))}/configs/{file_name}'
 config = configparser.ConfigParser()
 config.read(config_file_path)
 

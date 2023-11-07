@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 sys.path.append('/Users/scottmerrill/Documents/UNC/Research/coingame/evoenv')
 from evoenv.matrixtools.matrixtools import FloatTupleDtype
-from networks import MLP, CategoricalPolicy
+from networks import MLP, CategoricalPolicy, GaussianPolicy
 
 def section_to_dict(config, section):
   section_dict = {}
@@ -16,6 +16,9 @@ def section_to_dict(config, section):
       section_dict[option] = CategoricalPolicy
     elif val == 'MLP':
       section_dict[option] = MLP
+    elif val == 'GaussianPolicy':
+      section_dict[option] = GaussianPolicy
+
     else:
       try:
         val = float(val)
@@ -35,6 +38,22 @@ def build_reward_matrix(a, b, c, d):
         [(b, c), (d, d)]
       ], dtype=FloatTupleDtype(2)
     )
+    return rewards
+
+
+def prisoner_dilemna_payoff(b, c):
+    R = b - c
+    S = -c
+    T = b
+    P = 0
+
+    rewards = np.array(
+      [
+        [(R, R), (S, T)],
+        [(T, S), (P, P)]
+      ], dtype=FloatTupleDtype(2)
+    )
+
     return rewards
 
 
@@ -67,6 +86,9 @@ def plot_reward_hist(dfs, titles=[]):
 def show_payoff_mat(payoff_matrix):
     vals = np.array([sum(x) for x in payoff_matrix.flatten()]).reshape(payoff_matrix.shape)
     annots = np.array([str(x) for x in payoff_matrix.flatten()], dtype='str').reshape(payoff_matrix.shape)
+    print(annots)
+    print(vals)
+
     sns.heatmap(vals, annot=annots, fmt='', linewidth=.5)
 
     plt.title('Payoff Matrix')

@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
-import pandas as pd
 import numpy as np
 
 # https://github.com/dongminlee94/deep_rl/tree/main
@@ -67,7 +65,7 @@ class CategoricalPolicy(MLP):
                  output_size,
                  output_limit=1.0,
                  hidden_sizes=(64,64),
-                 activation=torch.sigmoid,
+                 activation=torch.tanh,
     ):
         super(CategoricalPolicy, self).__init__(
             input_size=input_size,
