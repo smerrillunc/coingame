@@ -33,10 +33,10 @@ import mlflow
 # Define the objective function to optimize
 def objective(trial):
 
-    mlflow.set_experiment(experiment_name="PPO")
+    mlflow.set_experiment(experiment_name="VPG")
 
     with mlflow.start_run():
-        save_path = '/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/'
+        save_path = '/Users/scottmerrill/Documents/UNC/Research/coingame/data/VPG/'
 
         # make parameters
         rounds = 200
@@ -76,11 +76,12 @@ def objective(trial):
                     'env_options': env_options,
                     'env_description': env_description}
 
-        config_file_path = 'configs/pd_ppo.ini'
+        config_file_path = 'configs/pd_vpg.ini'
         config = configparser.ConfigParser()
         config.read(config_file_path)
         base_player_options = {'memory': 1}
-        ppo_models = [section_to_dict(config, 'models'), section_to_dict(config, 'models')]
+
+        vpg_models = [section_to_dict(config, 'models'), section_to_dict(config, 'models')]
 
         actor_config = section_to_dict(config, 'actor_config')
         critic_config = section_to_dict(config, 'critic_config')
@@ -89,39 +90,36 @@ def objective(trial):
 
         actor_config['input_size'] = input_size
         actor_config['hidden_sizes'] = (hidden_size_multiple * input_size,)
-        actor_config['output_size'] = 2
+        actor_config['output_size'] = int(actions_space)
 
         critic_config['input_size'] = input_size
         critic_config['output_size'] = int(1)
         critic_config['hidden_sizes'] = (hidden_size_multiple * input_size,)
-        ppo_model_params = [actor_config, critic_config]
+
+        vpg_model_params = [actor_config, critic_config]
+
 
         # Define your custom experiment logic here
-        gamma = trial.suggest_float('gamma', 0.5, 0.99)  # Example parameter ranges
-        lam = trial.suggest_float('lam', 0.5, 0.99)  # Example parameter ranges
-        policy_lr = trial.suggest_float('policy_lr', 0.001, 0.1)  # Example parameter ranges
+        lam = trial.suggest_float('lam', 0.25, 0.99)
+        gamma = trial.suggest_float('gamma', 0.25, 0.99)
+        policy_lr = trial.suggest_float('policy_lr', 0.001, 0.1)
         vf_lr = policy_lr
-        clip_param = trial.suggest_float('clip_param', 0.01, 0.5)  # Example parameter ranges
-        target_kl = trial.suggest_float('target_kl', 0.01, 0.1)  # Example parameter ranges
-
-        train_vf_iters = trial.suggest_int('train_vf_iters', 10, 20)  # Example parameter ranges
+        train_vf_iters = trial.suggest_int('train_vf_iters', 5, 20)
         train_policy_iters = train_vf_iters
 
-        ppo_player_options = {'gamma':gamma,
+        vpg_player_options = {'gamma':gamma,
                               'lam':lam,
                               'policy_lr':policy_lr,
                               'vf_lr':vf_lr,
-                              'clip_param':clip_param,
-                              'target_kl':target_kl,
                               'train_vf_iters':train_vf_iters,
                               'train_policy_iters':train_policy_iters,
                               'sample_size':timesteps}
 
         player_dict = {'player_class': PPOPlayer,
                            'base_player_options': base_player_options,
-                           'additional_player_options': ppo_player_options,
-                           'player_models': ppo_models,
-                           'player_model_params': ppo_model_params}
+                           'additional_player_options': vpg_player_options,
+                           'player_models': vpg_models,
+                           'player_model_params': vpg_model_params}
 
         experiment = coinGameExperiment.CoinGameExperiment(env_dict=env_dict,
                                                            population_dict=population_dict,
@@ -140,8 +138,6 @@ def objective(trial):
         mlflow.log_param("lam", lam)
         mlflow.log_param("policy_lr", policy_lr)
         mlflow.log_param("vf_lr", vf_lr)
-        mlflow.log_param("clip_param", clip_param)
-        mlflow.log_param("target_kl", target_kl)
         mlflow.log_param("train_vf_iters", train_vf_iters)
         mlflow.log_param("train_policy_iters", train_policy_iters)
         mlflow.log_param("hidden_size_multiple", hidden_size_multiple)
