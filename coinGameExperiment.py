@@ -333,13 +333,14 @@ class CoinGameExperiment():
       player_pairs = self.population.population_migration(player_pairs, count//2)
       player_pairs = self.population.population_migration(player_pairs, count//2)
 
+      # play all the games in player_pairings and record reward
+      tmp = self.play_paired_games(self.env, player_pairs, self.population.players, timesteps, self.device)
+
       end = datetime.now()
       total_time = end-start
       time_per_game = total_time / (self.N/2)
       time_per_timestep = time_per_game / timesteps
 
-      # play all the games in player_pairings and record reward
-      tmp = self.play_paired_games(self.env, player_pairs, self.population.players, timesteps, self.device)
       tmp['round'] = round_idx
       tmp['round_time'] = total_time
       tmp['time_per_game'] = time_per_game
