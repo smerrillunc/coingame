@@ -16,7 +16,6 @@ import logging
 import sys
 import matplotlib.pyplot as plt
 
-sys.path.append('/Users/scottmerrill/Documents/UNC/Research/coingame/evoenv')
 from evoenv.envs.enumerated_stochastic_game import EnumeratedStochasticGame, MatrixGame
 
 class CoinGameExperiment():
@@ -345,13 +344,16 @@ class CoinGameExperiment():
       df = pd.concat([df, tmp])
 
       if self.save_path:
-        df.to_csv(f'{self.save_path}/{self.save_name}.csv')
         self.logger.info(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
+        print(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
 
-      print(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
+        if (round_idx+1) % 100 == 0:
+            self.make_plots(df, timesteps, count)
+            df.to_csv(f'{self.save_path}/{self.save_name}.csv')
 
     if self.save_path:
       self.make_plots(df, timesteps, count)
+      df.to_csv(f'{self.save_path}/{self.save_name}.csv')
 
       # save the policy of each player for each state
       for player in self.population.players:

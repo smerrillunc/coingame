@@ -1,18 +1,8 @@
-import math
-import random
 import matplotlib
 import matplotlib.pyplot as plt
-from collections import namedtuple, deque
-from itertools import count
 
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import pandas as pd
 import numpy as np
-from sklearn.utils import shuffle
-import unittest
 import gc
 
 # set up matplotlib
@@ -25,15 +15,9 @@ plt.ion()
 # if GPU is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-import sys
-
-sys.path.append('/Users/scottmerrill/Documents/UNC/Research/coingame/evoenv')
-import evoenv
 from evoenv.envs.coin_game import CoinGame
 from players import PPOPlayer, DQNPlayer
-from population import Population
 from networks import MLP, GaussianPolicy, CategoricalPolicy
-from memoryBuffers import ReplayBuffer, Buffer
 import coinGameExperiment
 
 from datetime import datetime

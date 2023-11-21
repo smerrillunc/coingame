@@ -1,18 +1,9 @@
-import math
-import random
 import matplotlib
 import matplotlib.pyplot as plt
-from collections import namedtuple, deque
-from itertools import count
+
 
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-import pandas as pd
 import numpy as np
-from sklearn.utils import shuffle
-import unittest
 import gc
 
 # set up matplotlib

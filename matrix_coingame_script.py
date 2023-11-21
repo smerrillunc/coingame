@@ -14,9 +14,7 @@ plt.ion()
 # if GPU is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-import sys
 import os
-sys.path.append(f'{os.path.dirname(os.path.abspath(__file__))}/evoenv')
 
 from evoenv.envs.enumerated_stochastic_game import EnumeratedStochasticGame, MatrixGame
 from players import PPOPlayer, DQNPlayer,  VPGPlayer

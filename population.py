@@ -1,11 +1,6 @@
-import math
-import random
-from collections import namedtuple, deque
-from itertools import count
 import pandas as pd
 import numpy as np
 from sklearn.utils import shuffle
-import torch.optim as optim
 
 class Population():
   """
@@ -130,6 +125,23 @@ class Population():
 
     return blue_players, red_players
 
+  @staticmethod
+  def random_pairing(input_list):
+    """"
+    Description: This function will pair players randomly and ignore specific red/blue players
+    """
+    # Convert the list to a numpy array
+    array = np.array(input_list)
+
+    # Shuffle the array in-place
+    np.random.shuffle(array)
+
+    # Reshape the array into pairs
+    pairings = array.reshape(-1, 2)
+
+    # If the original list has an odd number of elements, the last element will be unpaired
+    # You can choose to handle it separately or ignore it based on your requirements
+    return pairings
 
   @staticmethod
   def pair_players(d, blue_players, red_players):
@@ -151,7 +163,7 @@ class Population():
       # for each population group match players within that group
       # can we do this in a more efficient vectorized way?
       for population_id in range(d):
-        population_pairs.append(np.array(list(zip( shuffle(blue_players[population_id]),
+        population_pairs.append(np.array(list(zip(shuffle(blue_players[population_id]),
                                                            red_players[population_id]))))
 
       return np.array(population_pairs)

@@ -1,11 +1,15 @@
 import numpy as np
-import sys
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-sys.path.append('/Users/scottmerrill/Documents/UNC/Research/coingame/evoenv')
-from evoenv.matrixtools.matrixtools import FloatTupleDtype
 from networks import MLP, CategoricalPolicy, GaussianPolicy
+
+class FloatTupleDtype:
+	r'''
+	Custom data type for structured arrays, representing a tuple of floats.
+	'''
+	def __new__(cls, n: int):
+		return np.dtype([(f'f{idx}', np.float_) for idx in range(n)])
 
 def section_to_dict(config, section):
   section_dict = {}
@@ -29,6 +33,57 @@ def section_to_dict(config, section):
       except:
         section_dict[option] = config.get(section, option)
   return section_dict
+
+def default_player_dict(config_file_path):
+    config = configparser.ConfigParser()
+    config.read(config_file_path)
+    algo = str(config.get('model_type', 'algo'))
+
+    if 'PPO' in algo:
+        player_class = PPOPlayer
+    else:
+        player_class = VPGPlayer
+
+    env_desc = section_to_dict(config, 'env')
+    memory = int(config.get('model_type', 'memory'))
+    timesteps = int(config.get('experiment', 'timesteps'))
+
+    # input size, we need an additional state for every memory lookback
+    # we also are appending to the state each players action
+    input_size = env_desc['state_space'] + (
+                env_desc['state_space'] + env_desc['players_per_game'] * env_desc['actions_space']) * (memory)
+
+    base_player_options = {'memory': memory,
+                           'obs_dim': input_size,
+                           'act_dim': env_desc['actions_space'],
+                           'configure_save_path': False}
+
+    hidden_size_multiple = 4
+
+    player_models = [section_to_dict(config, 'models'), section_to_dict(config, 'models')]
+
+    actor_config = section_to_dict(config, 'actor_config')
+    critic_config = section_to_dict(config, 'critic_config')
+
+    actor_config['input_size'] = input_size
+    actor_config['hidden_sizes'] = (hidden_size_multiple * input_size,)
+    actor_config['output_size'] = env_desc['actions_space']
+
+    critic_config['input_size'] = input_size
+    critic_config['output_size'] = int(1)
+    critic_config['hidden_sizes'] = (hidden_size_multiple * input_size,)
+    player_model_params = [actor_config, critic_config]
+
+    player_options = section_to_dict(config, 'learning_params')
+    player_options['sample_size'] = timesteps  # train after each round
+
+    player_dict = {'player_class': player_class,
+                   'base_player_options': base_player_options,
+                   'additional_player_options': player_options,
+                   'player_models': player_models,
+                   'player_model_params': player_model_params}
+
+    return player_dict
 
 def build_reward_matrix(a, b, c, d):
 

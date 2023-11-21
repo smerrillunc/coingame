@@ -14,10 +14,7 @@ plt.ion()
 # if GPU is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-import sys
 import os
-
-sys.path.append(f'{os.path.dirname(os.path.abspath(__file__))}/evoenv')
 
 from evoenv.envs.enumerated_stochastic_game import EnumeratedStochasticGame, MatrixGame
 from players import PPOPlayer, DQNPlayer,  VPGPlayer
@@ -30,13 +27,14 @@ import configparser
 import argparse
 
 parser = argparse.ArgumentParser(description='Read file content.')
-parser.add_argument('filename', metavar='FILE', type=str, help='Path to the input file')
+parser.add_argument("-f", "--filename", type=str, help='Path to config input file')
 args = parser.parse_args()
 
 # Access the file name using args.filename
 file_name = args.filename
 
-config_file_path = f'{os.path.dirname(os.path.abspath(__file__))}/configs/{file_name}'
+config_file_path = f'/nas/longleaf/home/smerrill/coingame/configs/{file_name}'
+print(config_file_path)
 
 config = configparser.ConfigParser()
 config.read(config_file_path)
@@ -132,25 +130,29 @@ for N in [20]:
     population_search.extend([(N, 1), (N, int(N/2))])
 
 for N, d in population_search:
-    print(N, d)
-    print(env_dict)
-    ## Population Settings
-    population_dict = {'N':N,
-                        'd':d}
+    # run each exp 5 times
+    for i in range(5):
+        print(player_dict)
+        print(N, d)
+        print(env_dict)
 
-    experiment = coinGameExperiment.CoinGameExperiment(env_dict=env_dict,
-                                                       population_dict=population_dict,
-                                                       player_dict=player_dict,
-                                                       device=device,
-                                                       save_path=save_path)
+        ## Population Settings
+        population_dict = {'N':N,
+                            'd':d}
 
-    total_games = rounds*N/2
-    total_timesteps = total_games * timesteps
-    print(f'Starting timesteps:{timesteps}, rounds:{rounds}, N:{N}, d:{d}, {algo}')
-    print(f'Total Games: {total_games}, Total Timesteps {total_timesteps}')
-    start = datetime.now()
-    print(start)
-    ppo_df, dqn_players, dqn_players_df = experiment.play_multi_rounds(rounds, timesteps, count)
-    print(datetime.now()-start)
-    del experiment
-    gc.collect()
+        experiment = coinGameExperiment.CoinGameExperiment(env_dict=env_dict,
+                                                           population_dict=population_dict,
+                                                           player_dict=player_dict,
+                                                           device=device,
+                                                           save_path=save_path)
+
+        total_games = rounds*N/2
+        total_timesteps = total_games * timesteps
+        print(f'Starting timesteps:{timesteps}, rounds:{rounds}, N:{N}, d:{d}, {algo}')
+        print(f'Total Games: {total_games}, Total Timesteps {total_timesteps}')
+        start = datetime.now()
+        print(start)
+        ppo_df, dqn_players, dqn_players_df = experiment.play_multi_rounds(rounds, timesteps, count)
+        print(datetime.now()-start)
+        del experiment
+        gc.collect()
