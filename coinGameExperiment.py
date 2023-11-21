@@ -321,9 +321,13 @@ class CoinGameExperiment():
         self.logger.info(f'Round {round_idx}, Start Time {start}')
 
       # pair players for this particular round
-      player_pairs = self.population.pair_players(self.population.d,
-                                                  self.population.blue_players,
-                                                  self.population.red_players)
+      #player_pairs = self.population.pair_players(self.population.d,
+      #                                            self.population.blue_players,
+      #                                            self.population.red_players)
+
+
+      # single population pairing, ignore color and population
+      player_pairs = self.population.random_pairing(np.append(self.population.blue_players, self.population.red_players))
 
       # note we have to divide count by two b
       player_pairs = self.population.population_migration(player_pairs, count//2)

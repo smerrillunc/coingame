@@ -141,7 +141,7 @@ class Population():
 
     # If the original list has an odd number of elements, the last element will be unpaired
     # You can choose to handle it separately or ignore it based on your requirements
-    return pairings
+    return np.array(pairings)[np.newaxis,:]
 
   @staticmethod
   def pair_players(d, blue_players, red_players):
