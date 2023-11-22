@@ -50,7 +50,6 @@ count = int(config.get('experiment', 'count'))
 memory = int(config.get('model_type', 'memory'))
 hidden_size_multiple = int(config.get('model_type', 'hidden_size_multiple'))
 algo = str(config.get('model_type', 'algo'))
-save_path = save_path + f'PD/{algo}/'
 
 # environment settings
 state_space = int(config.get('env', 'state_space'))

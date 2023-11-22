@@ -240,10 +240,10 @@ class CoinGameExperiment():
             player.steps += 1
 
             # can be different depending on player type
-            player.add_experience(state_full,
+            player.add_experience(state_full.cpu(),
                                  actions[idx],
                                  rewards[idx],
-                                observation_full,
+                                observation_full.cpu(),
                                   done=False)
             # Will only acutally train when the number of experience is equal to sample size for PPO player
             # and when the number of experience is greater than batch_size for dqn player
