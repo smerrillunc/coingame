@@ -113,6 +113,26 @@ class CoinGameExperiment():
       one_hot_dict[x][x] = 1
     return one_hot_dict
 
+  @staticmethod
+  def get_full_state(state, prev_states, col_idx, action_space):
+    """
+    Description: This method creates a complete state by combining
+    a state observation with player actions, leaving out the player action for the
+    ith player.
+    """
+
+    # actions are one hot encoded so need to delete from col index to action space
+    delete_cols = [x for x in range(col_idx, col_idx + action_space)]
+
+    # layer observed states is all of the actions of other players, not including
+    # their player.  To do this we delete the column in prev states corresponding
+    # to the action of the particular player
+
+    player_obs_states = np.delete(prev_states, delete_cols, axis=1)
+
+    # state full concatonates the current state with the previous memory of states/actions
+    state_full = np.concatenate([np.array(state).flatten(), player_obs_states.flatten()])
+    return state_full
 
   ###############################
   ###### GAME PLAY METHODS ######
@@ -135,8 +155,8 @@ class CoinGameExperiment():
 
     # by design blue player should already be first, but just in case
     # does this even matter?
-    if players[0].color == 'r':
-      players[0], players[1] = players[1], players[0]
+    # if players[0].color == 'r':
+    #  players[0], players[1] = players[1], players[0]
 
     df = pd.DataFrame()
 
@@ -166,13 +186,11 @@ class CoinGameExperiment():
     # initialize state queue for previous states
     for i in range(memory):
       prev_states.append([0 for x in range(len(state) + len(players)*len(action_space))])
+    prev_states = np.array(prev_states)
 
     # The full state is a flattened vector of the current state and (previous state, a0, a1) tuples
     # depending on the setting for memory this can be multiple
-    state_full = np.concatenate([np.array(state).flatten(), np.array(list(chain.from_iterable(prev_states)))])
-
-    # convert this to tensor
-    state_full = torch.tensor(state_full, dtype=torch.float32, device=device).unsqueeze(0)
+    state_full = CoinGameExperiment.get_full_state(state, prev_states, len(state), len(actions))
 
     blue_distance, red_distance, coin_color = CoinGameExperiment.get_player_distance(env)
 
@@ -181,9 +199,17 @@ class CoinGameExperiment():
     for i in range(timesteps):
           actions = []
           one_hot_actions = []
+          full_states = []
 
           # select an action for each player
-          for player in players:
+          for idx, player in enumerate(players):
+            col_idx = len(state) + idx * len(action_space)
+            state_full = CoinGameExperiment.get_full_state(state, prev_states, col_idx, len(action_space))
+
+            # save full states so we don't need to recompute
+            full_states.append(state_full)
+
+            # from this we create the state vector for the particular player
             action = player.select_action(state_full)
             one_hot_actions.append(one_hot_dict[action])
             actions.append(action)
@@ -194,8 +220,9 @@ class CoinGameExperiment():
           observation, _, rewards, _ = env.step(tuple(map(lambda x: action_map[x], actions)))
 
           # dequeou oldest prev_state in memory and add newest one now that we have action pairs
-          prev_states.pop()
-          prev_states.insert(0, np.append(state, one_hot_actions))
+          #prev_states.pop()
+          prev_states = np.delete(prev_states, -1, axis=0)
+          prev_states = np.insert(prev_states, 0, np.append(state, one_hot_actions).flatten(), axis=0)
 
           # Coin was collected
           if sum([abs(x) for x in rewards]) > 0:
@@ -230,28 +257,30 @@ class CoinGameExperiment():
 
           # convert observation to flattened numpy array
           observation = CoinGameExperiment.convert_state(observation)
-          observation_full = np.concatenate([np.array(observation).flatten(), np.array(list(chain.from_iterable(prev_states)))])
-          observation_full = torch.torch.tensor(observation_full, dtype=torch.float32, device=device).flatten().unsqueeze(0)
 
           # update experience replay memory and update policies
           # question do we need to store actions/rewards of all players if we're selfish
           # optimizers?
+
           for idx, player in enumerate(players):
+            col_idx = len(state) + idx * len(action_space)
+            state_full = full_states[idx]
+            observation_full = CoinGameExperiment.get_full_state(observation, prev_states, col_idx, len(action_space))
             player.steps += 1
 
             # can be different depending on player type
-            player.add_experience(state_full.cpu(),
+            player.add_experience(state_full,
                                  actions[idx],
                                  rewards[idx],
-                                observation_full.cpu(),
+                                observation_full,
                                   done=False)
+
             # Will only acutally train when the number of experience is equal to sample size for PPO player
             # and when the number of experience is greater than batch_size for dqn player
             player.train_model()
 
           # set state to next state
           state = observation
-          state_full = observation_full
 
     return env, players, df
 

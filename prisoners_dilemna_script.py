@@ -33,7 +33,7 @@ args = parser.parse_args()
 # Access the file name using args.filename
 file_name = args.filename
 
-config_file_path = f'/nas/longleaf/home/smerrill/coingame/configs/{file_name}'
+config_file_path = f'configs/{file_name}'
 print(config_file_path)
 
 config = configparser.ConfigParser()
@@ -58,8 +58,7 @@ players_per_game = int(config.get('env', 'players_per_game'))
 c = int(config.get('env', 'c'))
 b = int(config.get('env', 'b'))
 
-input_size = state_space + (state_space + players_per_game*actions_space) * (memory)
-
+input_size = state_space + (state_space + (players_per_game-1)*actions_space) * (memory)
 base_player_options = {'memory':memory}
 
 if algo == 'PPO' or algo == 'VPG':
