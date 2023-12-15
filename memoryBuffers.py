@@ -59,6 +59,8 @@ class Buffer(object):
         self.don_buf[self.ptr] = don
         self.v_buf[self.ptr] = v
         self.ptr += 1
+        if self.ptr == self.max_size:
+            self.ptr = 0
 
     def finish_path(self):
         previous_v = 0
@@ -78,8 +80,6 @@ class Buffer(object):
         self.adv_buf = (self.adv_buf - self.adv_buf.mean()) / self.adv_buf.std()
         
     def get(self):
-        assert self.ptr == self.max_size     # Buffer has to be full before you can get
-        self.ptr = 0
         return dict(obs=torch.Tensor(self.obs_buf).to(self.device),
                     act=torch.Tensor(self.act_buf).to(self.device),
                     ret=torch.Tensor(self.ret_buf).to(self.device),

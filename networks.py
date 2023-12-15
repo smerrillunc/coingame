@@ -9,10 +9,6 @@ def identity(x):
     """Return input without any change."""
     return x
 
-
-
-
-
 """
 DQN, DDQN, A2C critic, VPG critic, TRPO critic, PPO critic, DDPG actor, TD3 actor
 """
@@ -25,7 +21,8 @@ class MLP(nn.Module):
                  activation=F.relu, 
                  output_activation=identity,
                  use_output_layer=True,
-                 use_actor=False,):
+                 use_actor=False,
+                 initialization='uniform'):
         super(MLP, self).__init__()
 
         self.input_size = input_size
@@ -37,19 +34,42 @@ class MLP(nn.Module):
         self.use_output_layer = use_output_layer
         self.use_actor = use_actor
 
+        if initialization == 'uniform':
+            self.initialization = torch.nn.init.uniform_
+        elif initialization == 'normal':
+            self.initialization = torch.nn.init.normal_
+
         # Set hidden layers
         self.hidden_layers = nn.ModuleList()
         in_size = self.input_size
         for next_size in self.hidden_sizes:
             fc = nn.Linear(in_size, next_size)
+
+            if initialization == 'dirichlet':
+                alpha = torch.tensor([0.5 for x in range (fc.weight.shape[1])])  # concentration parameters
+                dirichlet = torch.distributions.Dirichlet(alpha)
+                samples = dirichlet.sample([fc.weight.shape[0],])
+                fc.weight.data = samples
+            else:
+                self.initialization(fc.weight)
+
             in_size = next_size
             self.hidden_layers.append(fc)
 
         # Set output layers
         if self.use_output_layer:
             self.output_layer = nn.Linear(in_size, self.output_size)
+
+            if initialization == 'dirichlet':
+                alpha = torch.tensor([0.5 for x in range (self.output_layer.weight.shape[1])])  # concentration parameters
+                dirichlet = torch.distributions.Dirichlet(alpha)
+                samples = dirichlet.sample([self.output_layer.weight.shape[0],])
+                self.output_layer.weight.data = samples
+            else:
+                self.initialization(self.output_layer.weight)
         else:
             self.output_layer = identity
+
 
     def forward(self, x):
         for hidden_layer in self.hidden_layers:
@@ -63,15 +83,16 @@ class CategoricalPolicy(MLP):
     def __init__(self,
                  input_size,
                  output_size,
-                 output_limit=1.0,
-                 hidden_sizes=(64,64),
-                 activation=torch.tanh,
+                 hidden_sizes=(64,),
+                 activation=torch.relu,
+                 initialization='uniform'
     ):
         super(CategoricalPolicy, self).__init__(
             input_size=input_size,
             output_size=output_size,
             hidden_sizes=hidden_sizes,
-            activation=activation)
+            activation=activation,
+            initialization=initialization)
 
     def forward(self, x, pi=None, use_pi=True):
         x = super(CategoricalPolicy, self).forward(x)

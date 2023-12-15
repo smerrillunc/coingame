@@ -1,5 +1,6 @@
 import matplotlib
 import matplotlib.pyplot as plt
+import torch.nn.functional as F
 
 import torch
 import gc
@@ -45,7 +46,7 @@ file_name = args.filename
 # these will be uniformaly distrubuted of low to high
 variable = args.variable
 low = args.low
-high = args.high
+high = args.max
 intervals = args.intervals
 param_range = np.linspace(low, high, intervals, dtype=float)
 
@@ -80,7 +81,6 @@ base_player_options = {'memory':memory}
 if algo == 'PPO' or algo == 'VPG':
     if 'PPO' in algo:
         player_class = PPOPlayer
-
     else:
         player_class = VPGPlayer
 
@@ -144,17 +144,41 @@ for N in [20]:
     population_search.extend([(N, 1), (N, int(N/2))])
 
 
-for param in param_range:
-    player_options[variable] = param
+activation_funcs = [F.relu, F.leaky_relu, F.elu, F.tanh, F.sigmoid]
+initializations = ['uniform', 'normal', 'dirichlet']
+# run each exp 25 times
+for i in range(25):
+    # alternate each param value
+    for idx, param in enumerate(param_range):
+        if variable == 'hidden_size_multiple':
+            model_params[0]['hidden_sizes'] = (hidden_size_multiple*input_size,)
+            model_params[1]['hidden_sizes'] = (hidden_size_multiple*input_size,)
+        elif variable == 'buffer_multiple':
+            player_options[variable] = int(param)
+        elif variable == 'output_activation':
+            model_params[0]['output_activation'] = activation_funcs[idx]
+            model_params[1]['output_activation'] = activation_funcs[idx]
+        elif variable == 'initialization':
+            param = initializations[idx]
+            model_params[0]['initialization'] = param
+            model_params[1]['initialization'] = param
+        elif variable == 'activation':
+            param = activation_funcs[idx]
+            model_params[0]['activation'] = param
+            model_params[1]['activation'] = param
+        elif variable == 'train_vf_iters':
+            player_options[variable] = int(param)
+            if "PPO" in algo:
+                player_options['train_policy_iters'] = int(param)
 
-    # let's also fix learning rates
-    if variable == 'vf_lr':
-        player_options['policy_lr'] = param
-    elif variable == 'policy_lr':
-        player_options['vf_lr'] = param
-        
-    # run each exp 25 times
-    for i in range(25):
+        else:
+            player_options[variable] = param
+            # let's also fix learning rates
+            if variable == 'vf_lr':
+                player_options['policy_lr'] = param
+            elif variable == 'policy_lr':
+                player_options['vf_lr'] = param
+
         for N, d in population_search:
             print(player_dict)
             print(N, d)
@@ -163,7 +187,6 @@ for param in param_range:
             ## Population Settings
             population_dict = {'N':N,
                                 'd':d}
-
             if d == 1:
                 exp_group = "population"
             else:

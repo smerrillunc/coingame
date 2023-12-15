@@ -204,8 +204,8 @@ class PPOPlayer(Player):
                 steps=0,
                 gamma=0.99,
                 lam=0.97,
-                hidden_sizes=(64,64),
                 sample_size=2048,
+                buffer_multiple=10,
                 train_policy_iters=80,
                 train_vf_iters=80,
                 clip_param=0.2,
@@ -222,8 +222,8 @@ class PPOPlayer(Player):
       self.steps = steps 
       self.gamma = gamma
       self.lam = lam
-      self.hidden_sizes = hidden_sizes
       self.sample_size = sample_size
+      self.buffer_multiple = buffer_multiple
       self.train_policy_iters = train_policy_iters
       self.train_vf_iters = train_vf_iters
       self.clip_param = clip_param
@@ -243,7 +243,7 @@ class PPOPlayer(Player):
       self.vf_optimizer = optim.Adam(self.vf.parameters(), lr=self.vf_lr)
       
       # Experience buffer
-      self.buffer = Buffer(self.obs_dim, self.act_dim, self.sample_size, self.device, self.gamma, self.lam)
+      self.buffer = Buffer(self.obs_dim, self.act_dim, self.sample_size*self.buffer_multiple, self.device, self.gamma, self.lam)
 
 
    def select_action(self, obs, eval_mode=False):
@@ -279,7 +279,8 @@ class PPOPlayer(Player):
       # Policy loss
       ratio = torch.exp(log_pi - log_pi_old)
       clip_adv = torch.clamp(ratio, 1.-self.clip_param, 1.+self.clip_param)*adv
-      policy_loss = -torch.min(ratio*adv, clip_adv).mean()
+      policy_loss = -(torch.min(ratio*adv, clip_adv)).mean()
+      print(policy_loss.grad)
 
       # A sample estimate for KL-divergence, easy to compute
       approx_kl = (log_pi_old - log_pi).mean()
@@ -310,14 +311,16 @@ class PPOPlayer(Player):
       # Train policy with multiple steps of gradient descent
       for i in range(self.train_policy_iters):
          policy_loss, kl = self.compute_policy_loss(obs, act, adv, log_pi_old)
-         
+
          # Early stopping at step i due to reaching max kl
          if kl > 1.5 * self.target_kl:
             break
-         
+
+         print(policy_loss)
          # Update policy network parameter
          self.policy_optimizer.zero_grad()
          policy_loss.backward()
+         print(policy_loss.grad)
          self.policy_optimizer.step()
 
       # Train value with multiple steps of gradient descent
@@ -373,8 +376,8 @@ class VPGPlayer(Player):
                  steps=0,
                  gamma=0.99,
                  lam=0.97,
-                 hidden_sizes=(64, 64),
                  sample_size=2048,
+                 buffer_multiple=10,
                  policy_lr=3e-4,
                  vf_lr=1e-3,
                  train_vf_iters=80,
@@ -388,8 +391,8 @@ class VPGPlayer(Player):
         self.steps = steps
         self.gamma = gamma
         self.lam = lam
-        self.hidden_sizes = hidden_sizes
         self.sample_size = sample_size
+        self.buffer_multiple = buffer_multiple
         self.train_vf_iters = train_vf_iters
         self.policy_lr = policy_lr
         self.vf_lr = vf_lr
@@ -406,7 +409,7 @@ class VPGPlayer(Player):
         self.vf_optimizer = optim.Adam(self.vf.parameters(), lr=self.vf_lr)
 
         # Experience buffer
-        self.buffer = Buffer(self.obs_dim, self.act_dim, self.sample_size, self.device, self.gamma, self.lam)
+        self.buffer = Buffer(self.obs_dim, self.act_dim, self.sample_size*self.buffer_multiple, self.device, self.gamma, self.lam)
 
     def select_action(self, obs):
         action, _, _, _ = self.policy(torch.Tensor(obs).to(self.device))
@@ -430,10 +433,7 @@ class VPGPlayer(Player):
         for _ in range(self.train_vf_iters):
             # Prediction V(s)
             v = self.vf(obs).squeeze(1)
-
-            # Value loss
             vf_loss = F.mse_loss(v, ret)
-
             self.vf_optimizer.zero_grad()
             vf_loss.backward()
             self.vf_optimizer.step()
