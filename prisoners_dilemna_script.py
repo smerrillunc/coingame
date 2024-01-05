@@ -28,6 +28,8 @@ import argparse
 
 parser = argparse.ArgumentParser(description='Read file content.')
 parser.add_argument("-f", "--filename", type=str, help='Path to config input file')
+#parser.add_argument("-f", "--filename", type=str, help='Path to config input file')
+
 args = parser.parse_args()
 
 # Access the file name using args.filename
@@ -40,6 +42,7 @@ config = configparser.ConfigParser()
 config.read(config_file_path)
 
 save_path = str(config.get('general', 'save_path'))
+save_path = None
 
 # experiment settings
 rounds = int(config.get('experiment', 'rounds'))
@@ -58,7 +61,12 @@ players_per_game = int(config.get('env', 'players_per_game'))
 c = int(config.get('env', 'c'))
 b = int(config.get('env', 'b'))
 
-input_size = state_space + (state_space + (players_per_game-1)*actions_space) * (memory)
+# full input size
+input_size = state_space + (state_space + (players_per_game)*actions_space) * (memory)
+
+# reactive only input size
+#input_size = state_space + (state_space + (players_per_game-1)*actions_space) * (memory)
+
 base_player_options = {'memory':memory}
 
 if algo == 'PPO' or algo == 'VPG':

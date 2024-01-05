@@ -68,6 +68,7 @@ class CoinGameExperiment():
     self.player_dict = player_dict
 
     # Define the directory path with the current date as the name
+    save_path=None
     if save_path:
       self.save_path = CoinGameExperiment.configure_save_directory(save_path)
       self.player_dict['base_player_options']['save_path'] = self.save_path
@@ -117,8 +118,34 @@ class CoinGameExperiment():
   def get_full_state(state, prev_states, col_idx, action_space):
     """
     Description: This method creates a complete state by combining
+    a state observation with all player actions.  We standardize to make sure
+    the actions are all ordered so action vector 1 is the player and action vector 2 - N
+    are the opponents
+    """
+
+    # only move the columns if they're not already in first position
+    if col_idx != 1:
+      # cols to move
+      columns_to_move = [x for x in range(col_idx, col_idx + action_space)]
+
+      # Define the new position for the selected columns
+      new_position = 1
+
+      # Move the selected columns to the new position
+      prev_states = np.hstack((prev_states[:, :new_position],
+                               prev_states[:, columns_to_move],
+                               prev_states[:, new_position:new_position + len(columns_to_move)]))
+
+    # state full concatonates the current state with the previous memory of states/actions
+    state_full = np.concatenate([np.array(state).flatten(), prev_states.flatten()])
+    return state_full
+
+  @staticmethod
+  def get_full_state_reactive(state, prev_states, col_idx, action_space):
+    """
+    Description: This method creates a complete state by combining
     a state observation with player actions, leaving out the player action for the
-    ith player.
+    ith player.  This is so we only get opponents actions in this setting.
     """
 
     # actions are one hot encoded so need to delete from col index to action space
@@ -190,7 +217,7 @@ class CoinGameExperiment():
 
     # The full state is a flattened vector of the current state and (previous state, a0, a1) tuples
     # depending on the setting for memory this can be multiple
-    state_full = CoinGameExperiment.get_full_state(state, prev_states, len(state), len(actions))
+    state_full = CoinGameExperiment.get_full_state(state, prev_states, col_idx=len(state), action_space=len(actions))
 
     blue_distance, red_distance, coin_color = CoinGameExperiment.get_player_distance(env)
 
@@ -204,8 +231,7 @@ class CoinGameExperiment():
           # select an action for each player
           for idx, player in enumerate(players):
             col_idx = len(state) + idx * len(action_space)
-            state_full = CoinGameExperiment.get_full_state(state, prev_states, col_idx, len(action_space))
-
+            state_full = CoinGameExperiment.get_full_state(state, prev_states, col_idx=col_idx, action_space=len(action_space))
             # save full states so we don't need to recompute
             full_states.append(state_full)
 
@@ -265,15 +291,15 @@ class CoinGameExperiment():
           for idx, player in enumerate(players):
             col_idx = len(state) + idx * len(action_space)
             state_full = full_states[idx]
-            observation_full = CoinGameExperiment.get_full_state(observation, prev_states, col_idx, len(action_space))
+            observation_full = CoinGameExperiment.get_full_state(observation, prev_states, col_idx=col_idx, action_space=len(action_space))
             player.steps += 1
 
             # can be different depending on player type
             player.add_experience(state_full,
                                  actions[idx],
                                  rewards[idx],
-                                observation_full,
-                                  done=False)
+                                 observation_full,
+                                 done=False)
 
             # Will only acutally train when the number of experience is equal to sample size for PPO player
             # and when the number of experience is greater than batch_size for dqn player

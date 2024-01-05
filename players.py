@@ -280,7 +280,6 @@ class PPOPlayer(Player):
       ratio = torch.exp(log_pi - log_pi_old)
       clip_adv = torch.clamp(ratio, 1.-self.clip_param, 1.+self.clip_param)*adv
       policy_loss = -(torch.min(ratio*adv, clip_adv)).mean()
-      print(policy_loss.grad)
 
       # A sample estimate for KL-divergence, easy to compute
       approx_kl = (log_pi_old - log_pi).mean()
@@ -316,11 +315,9 @@ class PPOPlayer(Player):
          if kl > 1.5 * self.target_kl:
             break
 
-         print(policy_loss)
          # Update policy network parameter
          self.policy_optimizer.zero_grad()
          policy_loss.backward()
-         print(policy_loss.grad)
          self.policy_optimizer.step()
 
       # Train value with multiple steps of gradient descent
