@@ -12,16 +12,10 @@ plt.ion()
 # if GPU is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-import sys
-import os
-
-sys.path.append(f'/nas/longleaf/home/smerrill/coingame/evoenv')
-
 from evoenv.envs.enumerated_stochastic_game import EnumeratedStochasticGame, MatrixGame
 from players import PPOPlayer, DQNPlayer,  VPGPlayer
 import coinGameExperiment
 
-from datetime import datetime
 from cg_utils import section_to_dict, prisoner_dilemna_payoff
 
 import optuna
@@ -33,12 +27,12 @@ import argparse
 def objective(trial):
 
     # make parameters
-    rounds = 5#00
+    rounds = 1000
     count = 0
-    timesteps = 3#100
+    timesteps = 100
 
-    N = 10
-    d = 5
+    N = 6
+    d = 3
 
     population_dict = {'N': N,
                        'd': d}
@@ -85,7 +79,7 @@ def objective(trial):
 
     actor_config['input_size'] = input_size
     actor_config['hidden_sizes'] = (hidden_size_multiple * input_size,)
-    actor_config['output_size'] = 2
+    actor_config['output_size'] = int(actions_space)
 
     critic_config['input_size'] = input_size
     critic_config['output_size'] = int(1)
@@ -146,6 +140,7 @@ def objective(trial):
     p2_exploit = df[df['round']==df['round'].max()]['p2_exploit_flag'].sum()
     exploit = df[df['round']==df['round'].max()]['exploit_flag'].sum()
 
+    optuna.upload_artifact(trial, f'{experiment.save_path}/{experiment.save_name}.png')
     trial.set_user_attr('image_path', f'{experiment.save_path}/{experiment.save_name}.png')
 
     # mutual_cooperation_flag
@@ -175,14 +170,21 @@ parser.add_argument("-o", "--optimize", default=1, type=int, help='optimize flag
 args = parser.parse_args()
 optimize_flag = int(args.optimize)
 
-save_path = '/nas/longleaf/home/smerrill/coingame/data/PPO/'
+if optimize_flag == 1:
+    study_name = 'ppo_mutual_cooperation'
+elif optimize_flag == 2:
+    study_name = 'ppo_mutual_defection'
+else:
+    study_name = 'ppo_exploitations'
+
+save_path = '/proj/mcavoy_lab/projects/coingame/'
 #save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/'
+#artifact_store = FileSystemArtifactStore(base_path=save_path + 'artifacts')
 
 db_path = save_path + r'optimize.db'
 conn = sqlite3.connect(db_path)
 
 # Create an Optuna study with SQLite storage
-study_name = 'ppo_optimize'
 storage_name = f'sqlite:///{db_path}?study_name={study_name}'
 
 # Create a study object and specify the direction ('minimize' or 'maximize')
