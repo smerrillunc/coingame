@@ -68,7 +68,6 @@ class CoinGameExperiment():
     self.player_dict = player_dict
 
     # Define the directory path with the current date as the name
-    save_path=None
     if save_path:
       self.save_path = CoinGameExperiment.configure_save_directory(save_path)
       self.player_dict['base_player_options']['save_path'] = self.save_path
@@ -251,9 +250,17 @@ class CoinGameExperiment():
           prev_states = np.insert(prev_states, 0, np.append(state, one_hot_actions).flatten(), axis=0)
 
           # Coin was collected
-          if sum([abs(x) for x in rewards]) > 0:
+          if True: # sum([abs(x) for x in rewards]) > 0:
             # here we compute whether red or blue player was defectors and get distances
-            blue_label, red_label = CoinGameExperiment.is_collaborator_defector(blue_distance, red_distance, coin_color, rewards)
+            # blue_label, red_label = CoinGameExperiment.is_collaborator_defector(blue_distance, red_distance, coin_color, rewards)
+            mutual_cooperation_flag = 0
+            mutual_defection_flag = 0
+
+            if (actions[0] == 0) & (actions[1] == 0):
+              mutual_defection_flag = 1
+            elif (actions[0] == 1) & (actions[1] == 1):
+              mutual_cooperation_flag = 1
+
 
             # store metrics related to the episode
             tmp = {
@@ -266,8 +273,10 @@ class CoinGameExperiment():
               'blue_reward':rewards[0],
               'total_reward': rewards[0]+rewards[1],
               'coin_color':coin_color,
-              'red_label':red_label,
-              'blue_label':blue_label,
+              #'red_label':red_label,
+              #'blue_label':blue_label,
+              'mutual_cooperation_flag':mutual_cooperation_flag,
+              'mutual_defection_flag':mutual_defection_flag,
               'blue_population': players[0].population,
               'red_population': players[1].population,
               'blue_player_id':players[0].player_id,
