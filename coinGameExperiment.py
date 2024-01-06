@@ -255,11 +255,26 @@ class CoinGameExperiment():
             # blue_label, red_label = CoinGameExperiment.is_collaborator_defector(blue_distance, red_distance, coin_color, rewards)
             mutual_cooperation_flag = 0
             mutual_defection_flag = 0
+            exploit_flag = 0
+            p1_exploit_flag = 0
+            p2_exploit_flag = 0
+            # action zero = cooperate, action 1 = defect based on payoff defined in cg_utils
 
-            if (actions[0] == 0) & (actions[1] == 0):
+            if (actions[0] == 1) & (actions[1] == 1):
               mutual_defection_flag = 1
-            elif (actions[0] == 1) & (actions[1] == 1):
+
+            elif (actions[0] == 0) & (actions[1] == 0):
               mutual_cooperation_flag = 1
+
+            # p1 exploits p2
+            elif (actions[0] == 1) & (actions[1] == 0):
+              p1_exploit_flag = 1
+              exploit_flag = 1
+
+            # p2 exploits p1
+            else:
+              p2_exploit_flag = 1
+              exploit_flag = 1
 
 
             # store metrics related to the episode
@@ -277,6 +292,9 @@ class CoinGameExperiment():
               #'blue_label':blue_label,
               'mutual_cooperation_flag':mutual_cooperation_flag,
               'mutual_defection_flag':mutual_defection_flag,
+              'exploit_flag': exploit_flag,
+              'p1_exploit_flag':p1_exploit_flag,
+              'p2_exploit_flag':p2_exploit_flag,
               'blue_population': players[0].population,
               'red_population': players[1].population,
               'blue_player_id':players[0].player_id,
@@ -579,14 +597,14 @@ class CoinGameExperiment():
   def make_plots(self, df, timesteps, count):
     df['total_reward'] = df['red_reward'] + df['blue_reward']
 
-    means = df.groupby('round').aggregate({'total_reward': 'mean',
-                                           'red_reward': 'mean',
-                                           'blue_reward': 'mean'}).reset_index()
-
+    #means = df.groupby('round').aggregate({'total_reward': 'mean',
+    #                                       'red_reward': 'mean',
+    #                                       'blue_reward': 'mean'}).reset_index()
+    means = df.groupby('round').aggregate({'total_reward': 'mean'}).reset_index()
     plt.figure(figsize=(12, 12))
-    plt.plot(means['round'], means['total_reward'], label='total_reward', color='green')
-    plt.plot(means['round'], means['red_reward'], label='red_reward', color='red')
-    plt.plot(means['round'], means['blue_reward'], label='blue_reward', color='blue')
+    plt.plot(means['round'], means['total_reward'], label='total_reward')#, color='green')
+    #plt.plot(means['round'], means['red_reward'], label='red_reward', color='red')
+    #plt.plot(means['round'], means['blue_reward'], label='blue_reward', color='blue')
     plt.grid(True)
     plt.legend(loc='best')
     plt.xlabel('Round')

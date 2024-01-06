@@ -27,17 +27,15 @@ from cg_utils import section_to_dict, prisoner_dilemna_payoff
 import optuna
 import configparser
 import sqlite3
-
-save_path = '/nas/longleaf/home/smerrill/coingame/data/PPO/'
-#save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/'
+import argparse
 
 # Define the objective function to optimize
 def objective(trial):
 
     # make parameters
-    rounds = 2#500
+    rounds = 5#00
     count = 0
-    timesteps = 10#0
+    timesteps = 3#100
 
     N = 10
     d = 5
@@ -141,12 +139,46 @@ def objective(trial):
                                                        save_path=save_path)
 
     df, _, _ = experiment.play_multi_rounds(rounds, timesteps, count)
-    score = df[df['round']==df['round'].max()]['mutual_cooperation_flag'].sum()
+
+    mutual_cooperation = df[df['round']==df['round'].max()]['mutual_cooperation_flag'].sum()
+    mutual_defection = df[df['round']==df['round'].max()]['mutual_defection_flag'].sum()
+    p1_exploit = df[df['round']==df['round'].max()]['p1_exploit_flag'].sum()
+    p2_exploit = df[df['round']==df['round'].max()]['p2_exploit_flag'].sum()
+    exploit = df[df['round']==df['round'].max()]['exploit_flag'].sum()
+
+    trial.set_user_attr('image_path', f'{experiment.save_path}/{experiment.save_name}.png')
+
+    # mutual_cooperation_flag
+    trial.set_user_attr('mutual_cooperation_flag', str(mutual_cooperation))
+    trial.set_user_attr('mutual_defection_flag', str(mutual_defection))
+    trial.set_user_attr('p1_exploit_flag', str(p1_exploit))
+    trial.set_user_attr('p2_exploit_flag', str(p2_exploit))
+    trial.set_user_attr('exploit_flag', str(exploit))
+    trial.set_user_attr('optimize_flag', str(optimize_flag))
+
+    if optimize_flag == 1:
+        score = mutual_cooperation
+    elif optimize_flag == 2:
+        score = mutual_defection
+    elif optimize_flag == 3:
+        score = exploit
+    else:
+        score = 0
+
     # output and compute scores
     del experiment
     return score
 
-db_path = save_path + 'ppo_optimize.db'
+parser = argparse.ArgumentParser(description='Read file content.')
+
+parser.add_argument("-o", "--optimize", default=1, type=int, help='optimize flag; 1 = mutual cooperation, 2 = mutual defection, 3 = exploitations')
+args = parser.parse_args()
+optimize_flag = int(args.optimize)
+
+save_path = '/nas/longleaf/home/smerrill/coingame/data/PPO/'
+#save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/'
+
+db_path = save_path + r'optimize.db'
 conn = sqlite3.connect(db_path)
 
 # Create an Optuna study with SQLite storage
