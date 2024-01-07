@@ -437,7 +437,7 @@ class CoinGameExperiment():
         self.logger.info(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
         print(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
 
-        if (round_idx+1) % 1 == 0:
+        if (round_idx+1) % 100 == 0:
             self.make_plots(df, timesteps, count)
             df.to_csv(f'{self.save_path}/{self.save_name}.csv')
 
@@ -447,6 +447,9 @@ class CoinGameExperiment():
     if self.save_path:
       self.make_plots(df, timesteps, count)
       df.to_csv(f'{self.save_path}/{self.save_name}.csv')
+
+      self.make_policy_plots(player_idx=1)
+      self.policy_df.to_csv(f'{self.save_path}/policies.csv')
 
       # save the policy of each player for each state
       for player in self.population.players:
