@@ -140,7 +140,7 @@ def objective(trial):
     p2_exploit = df[df['round']==df['round'].max()]['p2_exploit_flag'].sum()
     exploit = df[df['round']==df['round'].max()]['exploit_flag'].sum()
 
-    optuna.upload_artifact(trial, f'{experiment.save_path}/{experiment.save_name}.png')
+    #optuna.upload_artifact(trial, f'{experiment.save_path}/{experiment.save_name}.png')
     trial.set_user_attr('image_path', f'{experiment.save_path}/{experiment.save_name}.png')
 
     # mutual_cooperation_flag

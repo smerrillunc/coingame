@@ -132,11 +132,31 @@ def objective(trial):
 
     df, _, _ = experiment.play_multi_rounds(rounds, timesteps, count)
 
-    # output and compute scores
-    df = df.groupby('round').aggregate({'total_reward': 'mean'})
-    score = abs(df['total_reward'].max() - df['total_reward'].min())
+    mutual_cooperation = df[df['round']==df['round'].max()]['mutual_cooperation_flag'].sum()
+    mutual_defection = df[df['round']==df['round'].max()]['mutual_defection_flag'].sum()
+    p1_exploit = df[df['round']==df['round'].max()]['p1_exploit_flag'].sum()
+    p2_exploit = df[df['round']==df['round'].max()]['p2_exploit_flag'].sum()
+    exploit = df[df['round']==df['round'].max()]['exploit_flag'].sum()
 
-    del experiment
+    #optuna.upload_artifact(trial, f'{experiment.save_path}/{experiment.save_name}.png')
+    trial.set_user_attr('image_path', f'{experiment.save_path}/{experiment.save_name}.png')
+
+    # mutual_cooperation_flag
+    trial.set_user_attr('mutual_cooperation_flag', str(mutual_cooperation))
+    trial.set_user_attr('mutual_defection_flag', str(mutual_defection))
+    trial.set_user_attr('p1_exploit_flag', str(p1_exploit))
+    trial.set_user_attr('p2_exploit_flag', str(p2_exploit))
+    trial.set_user_attr('exploit_flag', str(exploit))
+    trial.set_user_attr('optimize_flag', str(optimize_flag))
+
+    if optimize_flag == 1:
+        score = mutual_cooperation
+    elif optimize_flag == 2:
+        score = mutual_defection
+    elif optimize_flag == 3:
+        score = exploit
+    else:
+        score = 0
 
     return score
 

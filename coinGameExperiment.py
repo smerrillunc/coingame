@@ -66,7 +66,7 @@ class CoinGameExperiment():
     self.save_policy = save_policy
 
     self.player_dict = player_dict
-
+    #save_path = None
     # Define the directory path with the current date as the name
     if save_path:
       self.save_path = CoinGameExperiment.configure_save_directory(save_path)
@@ -394,7 +394,7 @@ class CoinGameExperiment():
 
     # initialize game, payoff, rewards, rounds, etc.
     state, actions = self.env.reset()
-
+    self.policy_df = pd.DataFrame()
     for round_idx in range(rounds):
       start = datetime.now()
       print(f'Round {round_idx}, Start Time {start}')
@@ -430,13 +430,19 @@ class CoinGameExperiment():
 
       df = pd.concat([df, tmp])
 
+      self.policy_df = self.get_pd_policies(self.policy_df, round_idx)
+      self.policy_df.to_csv(f'policies.csv')
+
       if self.save_path:
         self.logger.info(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
         print(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
 
-        if (round_idx+1) % 100 == 0:
+        if (round_idx+1) % 1 == 0:
             self.make_plots(df, timesteps, count)
             df.to_csv(f'{self.save_path}/{self.save_name}.csv')
+
+            self.make_policy_plots(player_idx=1)
+            self.policy_df.to_csv(f'{self.save_path}/policies.csv')
 
     if self.save_path:
       self.make_plots(df, timesteps, count)
@@ -613,6 +619,25 @@ class CoinGameExperiment():
     plt.savefig(f'{self.save_path}/{self.save_name}.png')
     return 1
 
+  def make_policy_plots(self, player_idx=1):
+    fig, axs = plt.subplots(2, 2, figsize=(8, 6), sharey=True)
+    tmp2 = self.policy_df[self.policy_df.player_idx == player_idx].copy()
+
+    for idx, state in enumerate(tmp2.state.unique()):
+      tmp = tmp2[tmp2['state'] == state]
+
+      axs[idx // 2, idx % 2].plot(tmp['round_idx'], tmp['cooperate'])
+      axs[idx // 2, idx % 2].set_title(f'state: {state}')
+      axs[idx // 2, idx % 2].set_xlabel('Round')
+      axs[idx // 2, idx % 2].set_ylabel('Cooperation %')
+      axs[idx // 2, idx % 2].grid(True)
+
+    plt.suptitle(f'Player {player_idx}')
+    plt.tight_layout(pad=2)
+
+    plt.savefig(f'{self.save_path}/policy_{player_idx}.png')
+    return 1
+
   def make_summary_file(self):
     # create file in director
     with open(f'{self.save_path}/experiment_summary.txt', 'w') as file:
@@ -677,6 +702,27 @@ class CoinGameExperiment():
       else:
         i = i + 1
     return save_path
+
+  def get_pd_policies(self, policy_df, round_idx):
+    states = [[0, 0, 1, 0, 1, 0],
+              [0, 0, 1, 0, 0, 1],
+              [0, 0, 0, 1, 1, 0],
+              [0, 0, 0, 1, 0, 1],]
+
+    for player_idx, player in enumerate(self.population.players):
+      for idx, state in enumerate(states):
+        _, _, player_policy, _ = player.policy(torch.tensor(state, dtype=torch.float))
+        player_policy = player_policy.detach().numpy()
+
+        tmp = {'player_idx':player_idx,
+               'round_idx':round_idx,
+                'state':', '.join(map(str, state)),
+               'cooperate':player_policy[0],
+               'defect': player_policy[1]
+               }
+        policy_df = pd.concat([policy_df, pd.DataFrame(tmp,  index=[0])])
+
+    return policy_df
 
 
   def generate_all_states(self):
