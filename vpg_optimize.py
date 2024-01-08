@@ -29,8 +29,8 @@ def objective(trial):
 
     # make parameters
     rounds = 1000
-    count=0
-    timesteps = 10
+    count = 0
+    timesteps = 100
 
     N = 6
     d = 3
@@ -149,32 +149,62 @@ def objective(trial):
     trial.set_user_attr('exploit_flag', str(exploit))
     trial.set_user_attr('optimize_flag', str(optimize_flag))
 
+    # compute total cTFT strategies played
+    state1 = '0, 0, 1, 0, 1, 0'
+    state2 = '0, 0, 0, 1, 1, 0'
+    state3 = '0, 0, 0, 0, 0, 0'
+
+    tmp = df.groupby(['p1_state', 'p1_action']).aggregate({'round': 'count'}).reset_index()
+
+    count1 = tmp[((tmp.p1_state == state1) |
+                  (tmp.p1_state == state2) |
+                  (tmp.p1_state == state3)) &
+                 (tmp.p1_action == '1, 0')]['round'].sum()
+
+    tmp = df.groupby(['p2_state', 'p2_action']).aggregate({'round': 'count'}).reset_index()
+
+    count2 = tmp[((tmp.p2_state == state1) |
+                  (tmp.p2_state == state2) |
+                  (tmp.p2_state == state3)) &
+                 (tmp.p2_action == '1, 0')]['round'].sum()
+
+    total_tft = count1 + count2
+    trial.set_user_attr('total_tft', str(total_tft))
+
     if optimize_flag == 1:
         score = mutual_cooperation
     elif optimize_flag == 2:
         score = mutual_defection
     elif optimize_flag == 3:
         score = exploit
-    else:
+    elif optimize_flag == 4:
+        score = total_tft
+    elif optimize_flag == 5:
+        # Try to optimize to learn grim trigger
+        ## TODO ONLY IF WE ARE ABLE TO OPTIMIZE FOR TFT
+        pass
+    else
         score = 0
 
     return score
 
 parser = argparse.ArgumentParser(description='Read file content.')
 
-parser.add_argument("-o", "--optimize", default=1, type=int, help='optimize flag; 1 = mutual cooperation, 2 = mutual defection, 3 = exploitations')
+parser.add_argument("-o", "--optimize", default=1, type=int, help='optimize flag; 1 = mutual cooperation, 2 = mutual defection, 3 = exploitations, 4 = TFT')
 args = parser.parse_args()
 optimize_flag = int(args.optimize)
 
 if optimize_flag == 1:
-    study_name = 'vpg_mutual_cooperation'
+    study_name = 'ppo_mutual_cooperation'
 elif optimize_flag == 2:
-    study_name = 'vpg_mutual_defection'
-else:
-    study_name = 'vpg_exploitations'
+    study_name = 'ppo_mutual_defection'
+elif optimize_flag == 3:
+    study_name = 'ppo_exploitations'
+elif optimize_flag == 4:
+    study_name = 'ppo_TFT'
 
-#save_path = '/proj/mcavoy_lab/projects/coingame/'
-save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/'
+save_path = '/proj/mcavoy_lab/data/PD/'
+#save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/'
 #artifact_store = FileSystemArtifactStore(base_path=save_path + 'artifacts')
 
 db_path = save_path + r'optimize.db'

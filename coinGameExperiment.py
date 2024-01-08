@@ -12,6 +12,7 @@ import itertools
 
 import os
 from datetime import datetime
+import time
 import logging
 import sys
 import matplotlib.pyplot as plt
@@ -288,6 +289,10 @@ class CoinGameExperiment():
               'blue_reward':rewards[0],
               'total_reward': rewards[0]+rewards[1],
               'coin_color':coin_color,
+              'p1_state':', '.join(map(str, full_states[0])),
+              'p2_state':', '.join(map(str, full_states[1])), # adding these to see if we can optimize behavior in particular states
+              'p1_action':', '.join(map(str, one_hot_actions[0])),
+              'p2_action':', '.join(map(str, one_hot_actions[1])),
               #'red_label':red_label,
               #'blue_label':blue_label,
               'mutual_cooperation_flag':mutual_cooperation_flag,
@@ -623,7 +628,7 @@ class CoinGameExperiment():
     return 1
 
   def make_policy_plots(self, player_idx=1):
-    fig, axs = plt.subplots(2, 2, figsize=(8, 6), sharey=True)
+    fig, axs = plt.subplots(3, 2, figsize=(8, 6), sharey=True)
     tmp2 = self.policy_df[self.policy_df.player_idx == player_idx].copy()
 
     for idx, state in enumerate(tmp2.state.unique()):
@@ -698,19 +703,29 @@ class CoinGameExperiment():
     i = 1
     while True:
       if not os.path.exists(save_path + f'/{i}'):
+        try:
+          # try to create it
           save_path = save_path + f'/{i}'
           os.makedirs(save_path)
           print(f"Save Path created for Experiment number {i} on '{today}'")
           break
+        except:
+          # another scipt may have just created that
+          time.sleep(1)
       else:
         i = i + 1
     return save_path
 
   def get_pd_policies(self, policy_df, round_idx):
-    states = [[0, 0, 1, 0, 1, 0],
+    states = [[0, 0, 0, 0, 0, 0],
+              [0, 0, 1, 0, 1, 0],
               [0, 0, 1, 0, 0, 1],
               [0, 0, 0, 1, 1, 0],
-              [0, 0, 0, 1, 0, 1],]
+              [0, 0, 0, 1, 0, 1],
+              # NOTE THIS IS NOT A VALID STATE, BUT MAY TELL US SOMETHING
+              # ABOUT THE CONTRIBUTION OF THE POLICY COMING FROM THE OPPONENT
+              # VS THE CONTRIBUTION COMING FROM OUR ACTION
+              [0, 0, 0, 0, 0, 1],]
 
     for player_idx, player in enumerate(self.population.players):
       for idx, state in enumerate(states):
