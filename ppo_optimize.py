@@ -32,8 +32,11 @@ def objective(trial):
     timesteps = 100
 
     N = size
-    d = N//method
 
+    if N//method == N:
+        d = 1
+    else:
+        d = N//method
     population_dict = {'N': N,
                        'd': d}
 
@@ -186,7 +189,7 @@ def objective(trial):
         # Try to optimize to learn grim trigger
         ## TODO ONLY IF WE ARE ABLE TO OPTIMIZE FOR TFT
         pass
-    else
+    else:
         score = 0
 
     # output and compute scores

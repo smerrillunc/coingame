@@ -609,8 +609,6 @@ class CoinGameExperiment():
     self.logger.addHandler(stream_handler)
 
   def make_plots(self, df, timesteps, count):
-    df['total_reward'] = df['red_reward'] + df['blue_reward']
-
     #means = df.groupby('round').aggregate({'total_reward': 'mean',
     #                                       'red_reward': 'mean',
     #                                       'blue_reward': 'mean'}).reset_index()

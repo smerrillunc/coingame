@@ -33,8 +33,11 @@ def objective(trial):
     timesteps = 100
 
     N = size
-    d = N//method
 
+    if N//method == N:
+        d = 1
+    else:
+        d = N//method
     population_dict = {'N': N,
                        'd': d}
 
@@ -183,7 +186,7 @@ def objective(trial):
         # Try to optimize to learn grim trigger
         ## TODO ONLY IF WE ARE ABLE TO OPTIMIZE FOR TFT
         pass
-    else
+    else:
         score = 0
 
     return score
@@ -215,7 +218,9 @@ save_path = '/proj/mcavoy_lab/data/PD/'
 if method == 1:
     db_path = save_path + r'optimize_pop.db'
 elif method == 2:
-    db_path = save_path + r'optimize.db'conn = sqlite3.connect(db_path)
+    db_path = save_path + r'optimize.db'
+
+conn = sqlite3.connect(db_path)
 
 # Create an Optuna study with SQLite storage
 storage_name = f'sqlite:///{db_path}?study_name={study_name}'
