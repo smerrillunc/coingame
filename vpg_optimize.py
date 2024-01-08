@@ -53,7 +53,7 @@ def objective(trial):
     # we also are appending to the state each players action
     input_size = state_space + (state_space + players_per_game * actions_space) * (memory)
 
-    b = 5
+    b = 3
     c = 1
 
     rewards = prisoner_dilemna_payoff(b, c)
