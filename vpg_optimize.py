@@ -32,8 +32,8 @@ def objective(trial):
     count = 0
     timesteps = 100
 
-    N = 6
-    d = 3
+    N = size
+    d = N//method
 
     population_dict = {'N': N,
                        'd': d}
@@ -191,8 +191,13 @@ def objective(trial):
 parser = argparse.ArgumentParser(description='Read file content.')
 
 parser.add_argument("-o", "--optimize", default=1, type=int, help='optimize flag; 1 = mutual cooperation, 2 = mutual defection, 3 = exploitations, 4 = TFT')
+parser.add_argument("-m", "--method", default=1, type=int, help='1 = population; 1 = pairs')
+parser.add_argument("-s", "--size", default=6, type=int, help='population size')
+
 args = parser.parse_args()
 optimize_flag = int(args.optimize)
+method = int(args.method)
+size = int(args.size)
 
 if optimize_flag == 1:
     study_name = 'ppo_mutual_cooperation'
@@ -207,8 +212,10 @@ save_path = '/proj/mcavoy_lab/data/PD/'
 #save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/'
 #artifact_store = FileSystemArtifactStore(base_path=save_path + 'artifacts')
 
-db_path = save_path + r'optimize.db'
-conn = sqlite3.connect(db_path)
+if method == 1:
+    db_path = save_path + r'optimize_pop.db'
+elif method == 2:
+    db_path = save_path + r'optimize.db'conn = sqlite3.connect(db_path)
 
 # Create an Optuna study with SQLite storage
 storage_name = f'sqlite:///{db_path}?study_name={study_name}'
