@@ -59,7 +59,8 @@ class CoinGameExperiment():
     # setup population params    
     self.N = population_dict["N"]
     self.d = population_dict["d"]
-    
+    self.fix_pairings = population_dict.get('fix_pairs', 0)
+
     # add the save path to the players
     self.device = device
     self.save_name = save_name
@@ -396,6 +397,7 @@ class CoinGameExperiment():
     """
     # initialize output df
     df = pd.DataFrame()
+    player_pairs = []
 
     # initialize game, payoff, rewards, rounds, etc.
     state, actions = self.env.reset()
@@ -407,18 +409,21 @@ class CoinGameExperiment():
       if self.logger:
         self.logger.info(f'Round {round_idx}, Start Time {start}')
 
-      # pair players for this particular round
-      #player_pairs = self.population.pair_players(self.population.d,
-      #                                            self.population.blue_players,
-      #                                            self.population.red_players)
+      # if are fixing pairs we only do this once
+      # ie, when player pairings is first initialized
+      if (self.fix_pairings == 0) or (len(player_pairs) == 0):
+        # pair players for this particular round
+        # player_pairs = self.population.pair_players(self.population.d,
+        #                                            self.population.blue_players,
+        #                                            self.population.red_players)
 
+        # single population pairing, ignore color and population
+        player_pairs = self.population.random_pairing(np.append(self.population.blue_players, self.population.red_players))
 
-      # single population pairing, ignore color and population
-      player_pairs = self.population.random_pairing(np.append(self.population.blue_players, self.population.red_players))
-
-      # note we have to divide count by two b
-      player_pairs = self.population.population_migration(player_pairs, count//2)
-      player_pairs = self.population.population_migration(player_pairs, count//2)
+        # note we have to divide count by two b
+        player_pairs = self.population.population_migration(player_pairs, count//2)
+        player_pairs = self.population.population_migration(player_pairs, count//2)
+      #print(player_pairs)
 
       # play all the games in player_pairings and record reward
       tmp = self.play_paired_games(self.env, player_pairs, self.population.players, timesteps, self.device)

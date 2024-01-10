@@ -32,13 +32,11 @@ def objective(trial):
     timesteps = 100
 
     N = size
+    d = 1
 
-    if N//method == N:
-        d = 1
-    else:
-        d = N//method
     population_dict = {'N': N,
-                       'd': d}
+                       'd': d,
+                       'fix_pairs':fix_pairs}
 
     # environment settings
     state_space = 1
@@ -199,12 +197,12 @@ def objective(trial):
 parser = argparse.ArgumentParser(description='Read file content.')
 
 parser.add_argument("-o", "--optimize", default=1, type=int, help='optimize flag; 1 = mutual cooperation, 2 = mutual defection, 3 = exploitations, 4 = TFT')
-parser.add_argument("-m", "--method", default=1, type=int, help='1 = population; 1 = pairs')
+parser.add_argument("-f", "--fix_pairs", default=1, type=int, help='0: varying opponents; 1: same opponents')
 parser.add_argument("-s", "--size", default=6, type=int, help='population size')
 
 args = parser.parse_args()
 optimize_flag = int(args.optimize)
-method = int(args.method)
+fix_pairs = int(args.fix_pairs)
 size = int(args.size)
 
 if optimize_flag == 1:
@@ -216,14 +214,13 @@ elif optimize_flag == 3:
 elif optimize_flag == 4:
     study_name = 'ppo_TFT'
 
-save_path = '/proj/mcavoy_lab/data/PD/'
-#save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/'
-#artifact_store = FileSystemArtifactStore(base_path=save_path + 'artifacts')
+if fix_pairs == 0:
+    study_name = study_name + '_population'
 
-if method == 1:
-    db_path = save_path + r'optimize_pop.db'
-elif method == 2:
-    db_path = save_path + r'optimize.db'
+save_path = '/proj/mcavoy_lab/data/PD/'
+save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/'
+#artifact_store = FileSystemArtifactStore(base_path=save_path + 'artifacts')
+db_path = save_path + r'optimize.db'
 
 conn = sqlite3.connect(db_path)
 
