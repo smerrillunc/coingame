@@ -28,12 +28,16 @@ import argparse
 
 parser = argparse.ArgumentParser(description='Read file content.')
 parser.add_argument("-f", "--filename", type=str, help='Path to config input file')
+parser.add_argument("-p", "--pairs", type=int, default = 0,
+                    help='0:each player is assigned a new opponent each round, 1:Each player is paired with a single opponent')
+
 #parser.add_argument("-f", "--filename", type=str, help='Path to config input file')
 
 args = parser.parse_args()
 
 # Access the file name using args.filename
 file_name = args.filename
+fix_pairs = args.pairs
 
 config_file_path = f'configs/{file_name}'
 print(config_file_path)
@@ -42,11 +46,11 @@ config = configparser.ConfigParser()
 config.read(config_file_path)
 
 save_path = str(config.get('general', 'save_path'))
-save_path = None
+#save_path = None
 
 # experiment settings
 rounds = int(config.get('experiment', 'rounds'))
-timesteps = int(config.get('experiment', 'timesteps'))
+timesteps = 5#int(config.get('experiment', 'timesteps'))
 count = int(config.get('experiment', 'count'))
 
 # algo settings
@@ -144,7 +148,8 @@ for N, d in population_search:
 
         ## Population Settings
         population_dict = {'N':N,
-                            'd':d}
+                           'd':d,
+                           'fix_pairs':fix_pairs}
 
         experiment = coinGameExperiment.CoinGameExperiment(env_dict=env_dict,
                                                            population_dict=population_dict,
