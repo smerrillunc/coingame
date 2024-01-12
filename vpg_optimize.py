@@ -182,9 +182,7 @@ def objective(trial):
     elif optimize_flag == 4:
         score = total_tft
     elif optimize_flag == 5:
-        # Try to optimize to learn grim trigger
-        ## TODO ONLY IF WE ARE ABLE TO OPTIMIZE FOR TFT
-        pass
+        score = mutual_cooperation
     else:
         score = 0
 
