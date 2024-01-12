@@ -92,7 +92,6 @@ def objective(trial):
 
     vpg_model_params = [actor_config, critic_config]
 
-
     # Define your custom experiment logic here
     lam = trial.suggest_float('lam', 0.25, 0.99)
     gamma = trial.suggest_float('gamma', 0.25, 0.99)
@@ -100,7 +99,7 @@ def objective(trial):
     vf_lr = trial.suggest_float('vf_lr', 0.001, 0.05)
     buffer_multiple = trial.suggest_int('buffer_multiple', 1, 10)
 
-    train_vf_iters = trial.suggest_int('train_vf_iters', 1, 20, 2)
+    train_vf_iters = trial.suggest_int('train_vf_iters', 1, 19, 2)
     activation_function = trial.suggest_int('activation_function', 0, 4)
     initialization = trial.suggest_int('initialization', 0, 2)
 
@@ -202,6 +201,11 @@ optimize_flag = int(args.optimize)
 fix_pairs = int(args.fix_pairs)
 size = int(args.size)
 
+save_path = '/proj/mcavoy_lab/data/PD/'
+#save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/'
+#artifact_store = FileSystemArtifactStore(base_path=save_path + 'artifacts')
+db_path = save_path + r'optimize.db'
+
 if optimize_flag == 1:
     study_name = 'vpg_mutual_cooperation'
 elif optimize_flag == 2:
@@ -210,32 +214,57 @@ elif optimize_flag == 3:
     study_name = 'vpg_exploitations'
 elif optimize_flag == 4:
     study_name = 'vpg_TFT'
-
-save_path = '/proj/mcavoy_lab/data/PD/'
-save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/'
-#artifact_store = FileSystemArtifactStore(base_path=save_path + 'artifacts')
+elif optimize_flag == 5:
+    study_name = 'vpg_grid_search'
 
 if fix_pairs == 0:
     study_name = study_name + '_population'
 
-save_path = '/proj/mcavoy_lab/data/PD/'
-save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/'
-#artifact_store = FileSystemArtifactStore(base_path=save_path + 'artifacts')
-db_path = save_path + r'optimize.db'
-
 conn = sqlite3.connect(db_path)
-
 # Create an Optuna study with SQLite storage
 storage_name = f'sqlite:///{db_path}?study_name={study_name}'
 
-# Create a study object and specify the direction ('minimize' or 'maximize')
-study = optuna.create_study(direction='maximize',
-                            study_name=study_name,
-                            storage=storage_name,
-                            load_if_exists=True)
+if optimize_flag == 5:
+    hidden_size_range = [2, 4, 6]
+    lam_range = [0.1, 0.5, 0.9]
 
-# Optimize the study, passing the objective function and the number of trials
-study.optimize(objective, n_trials=10000)
+    gamma_range = [0.1, 0.5, 0.9]
+    policy_lr_range = [0.01, 0.05]
+    vf_lr_range = [0.01, 0.05]
+    buffer_multiple_range = [2, 4, 6]
+
+    train_vf_iters_range = [10]
+    train_policy_iters_range = [10]
+
+    activation_function_range = [0, 2, 3]
+    initialization_range = [0]
+
+    search_space = {"hidden_size_multiple": hidden_size_range,
+                    "lam": lam_range,
+                    "gamma":gamma_range,
+                    "policy_lr":policy_lr_range,
+                    "vf_lr":vf_lr_range,
+                    "buffer_multiple":buffer_multiple_range,
+                    "train_vf_iters":train_vf_iters_range,
+                    "activation_function":activation_function_range,
+                    "initialization":initialization_range}
+
+    study = optuna.create_study(sampler=optuna.samplers.GridSampler(search_space),
+                                study_name=study_name,
+                                storage=storage_name,
+                                load_if_exists=True)
+
+    study.optimize(objective)
+
+else :
+    # Create a study object and specify the direction ('minimize' or 'maximize')
+    study = optuna.create_study(direction='maximize',
+                                study_name=study_name,
+                                storage=storage_name,
+                                load_if_exists=True)
+
+    # Optimize the study, passing the objective function and the number of trials
+    study.optimize(objective, n_trials=10000)
 
 # Get the best parameters and the corresponding score
 best_params = study.best_params

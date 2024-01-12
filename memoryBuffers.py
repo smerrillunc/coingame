@@ -76,9 +76,16 @@ class Buffer(object):
             running_adv = running_del + self.gamma*self.lam*(1-self.don_buf[t])*running_adv
             previous_v = self.v_buf[t]
             self.adv_buf[t] = running_adv
+
+        # note if advantage is zero, gradient is zero and converged
         # The next line implement the advantage normalization trick
-        self.adv_buf = (self.adv_buf - self.adv_buf.mean()) / self.adv_buf.std()
-        
+        std = self.adv_buf.std()
+
+        if std > 0:
+            self.adv_buf = (self.adv_buf - self.adv_buf.mean()) / std
+        else:
+            print("Advantage Buffer Standard Deviation Zero")
+
     def get(self):
         return dict(obs=torch.Tensor(self.obs_buf).to(self.device),
                     act=torch.Tensor(self.act_buf).to(self.device),
