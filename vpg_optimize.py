@@ -193,7 +193,7 @@ def objective(trial):
 parser = argparse.ArgumentParser(description='Read file content.')
 
 parser.add_argument("-o", "--optimize", default=1, type=int, help='optimize flag; 1 = mutual cooperation, 2 = mutual defection, 3 = exploitations, 4 = TFT')
-parser.add_argument("-f", "--fix_pairs", default=1, type=int, help='0: varying opponents; 1: same opponents')
+parser.add_argument("-f", "--fix_pairs", default=0, type=int, help='0: varying opponents; 1: same opponents')
 parser.add_argument("-s", "--size", default=6, type=int, help='population size')
 
 args = parser.parse_args()
