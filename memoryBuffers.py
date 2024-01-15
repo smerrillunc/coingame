@@ -84,6 +84,7 @@ class Buffer(object):
         if std > 0:
             self.adv_buf = (self.adv_buf - self.adv_buf.mean()) / std
         else:
+            self.adv_buf = (self.adv_buf - self.adv_buf.mean())
             print("Advantage Buffer Standard Deviation Zero")
 
     def get(self):
