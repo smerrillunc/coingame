@@ -224,9 +224,9 @@ storage_name = f'sqlite:///{db_path}?study_name={study_name}'
 
 if optimize_flag == 5:
     hidden_size_range = [2, 4, 6]
-    lam_range = [0.1, 0.5, 0.9]
+    lam_range = [0.1, 0.25, 0.5, 0.75, 0.9]
 
-    gamma_range = [0.1, 0.5, 0.9]
+    gamma_range = [0.1, 0.25, 0.5, 0.75, 0.9]
     policy_lr_range = [0.01, 0.05]
     vf_lr_range = [0.01, 0.05]
     buffer_multiple_range = [2, 4, 6]
@@ -234,8 +234,8 @@ if optimize_flag == 5:
     train_vf_iters_range = [10]
     train_policy_iters_range = [10]
 
-    activation_function_range = [0, 2, 3]
-    initialization_range = [0]
+    activation_function_range = [0, 1, 2, 3]
+    initialization_range = [0, 1, 2]
 
     search_space = {"hidden_size_multiple": hidden_size_range,
                     "lam": lam_range,

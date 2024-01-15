@@ -308,7 +308,8 @@ class CoinGameExperiment():
 
             df = pd.concat([df, pd.DataFrame(tmp, index=[0])])
 
-            # start timestep of next episode
+            # start timestep of nel
+            # xt episode
             start_timestep = i
 
             # get red and blue distances again for new boardstate
@@ -628,6 +629,7 @@ class CoinGameExperiment():
     plt.ylabel('Mean Reward')
     plt.title(f'Population Size: {self.N}, Subpopulations: {self.d}, Migration Count: {count}, timesteps/round:{timesteps}')
     plt.savefig(f'{self.save_path}/{self.save_name}.png')
+    plt.close()
     return 1
 
   def make_policy_plots(self, player_idx=1):
@@ -647,6 +649,7 @@ class CoinGameExperiment():
     plt.tight_layout(pad=2)
 
     plt.savefig(f'{self.save_path}/policy_{player_idx}.png')
+    plt.close()
     return 1
 
   def make_summary_file(self):
