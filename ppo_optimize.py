@@ -19,10 +19,35 @@ import coinGameExperiment
 from cg_utils import section_to_dict, prisoner_dilemna_payoff
 
 import optuna
+from optuna.artifacts import FileSystemArtifactStore
+from optuna.artifacts import upload_artifact
+
 import configparser
 import sqlite3
 import argparse
 
+def compute_tft(df):
+    # compute total cTFT strategies played
+    state1 = '0, 0, 1, 0, 1, 0'
+    state2 = '0, 0, 0, 1, 1, 0'
+    state3 = '0, 0, 0, 0, 0, 0'
+
+    tmp = df.groupby(['p1_state', 'p1_action']).aggregate({'round': 'count'}).reset_index()
+
+    count1 = tmp[((tmp.p1_state == state1) |
+                  (tmp.p1_state == state2) |
+                  (tmp.p1_state == state3)) &
+                 (tmp.p1_action == '1, 0')]['round'].sum()
+
+    tmp = df.groupby(['p2_state', 'p2_action']).aggregate({'round': 'count'}).reset_index()
+
+    count2 = tmp[((tmp.p2_state == state1) |
+                  (tmp.p2_state == state2) |
+                  (tmp.p2_state == state3)) &
+                 (tmp.p2_action == '1, 0')]['round'].sum()
+
+    total_tft = count1 + count2
+    return total_tft
 # Define the objective function to optimize
 def objective(trial):
 
@@ -152,28 +177,19 @@ def objective(trial):
     trial.set_user_attr('exploit_flag', str(exploit))
     trial.set_user_attr('optimize_flag', str(optimize_flag))
 
-    # compute total cTFT strategies played
-    state1 = '0, 0, 1, 0, 1, 0'
-    state2 = '0, 0, 0, 1, 1, 0'
-    state3 = '0, 0, 0, 0, 0, 0'
-
-    tmp = df.groupby(['p1_state', 'p1_action']).aggregate({'round': 'count'}).reset_index()
-
-    count1 = tmp[((tmp.p1_state == state1) |
-                  (tmp.p1_state == state2) |
-                  (tmp.p1_state == state3)) &
-                 (tmp.p1_action == '1, 0')]['round'].sum()
-
-    tmp = df.groupby(['p2_state', 'p2_action']).aggregate({'round': 'count'}).reset_index()
-
-    count2 = tmp[((tmp.p2_state == state1) |
-                  (tmp.p2_state == state2) |
-                  (tmp.p2_state == state3)) &
-                 (tmp.p2_action == '1, 0')]['round'].sum()
-
-    total_tft = count1 + count2
+    total_tft = compute_tft(df)
     trial.set_user_attr('total_tft', str(total_tft))
 
+    # upload experiment results
+    file_path = f'{experiment.save_path}/{experiment.save_name}.png'
+    artifact_id = upload_artifact(trial, file_path, artifact_store)
+    trial.set_user_attr("resuls_artifact_id", artifact_id)
+
+    # upload player 1's policy
+    file_path =f'{experiment.save_path}/policy_1.png'
+    artifact_id = upload_artifact(trial, file_path, artifact_store)
+    trial.set_user_attr("policy_artifact_id", artifact_id)
+    del experiment
 
     if optimize_flag == 1:
         score = mutual_cooperation
@@ -184,12 +200,10 @@ def objective(trial):
     elif optimize_flag == 4:
         score = total_tft
     elif optimize_flag == 5:
-        score = mutual_cooperation
+        score = df[df['round']==df['round'].max()]['total_reward'].mean()/2
     else:
         score = 0
 
-    # output and compute scores
-    del experiment
     return score
 
 parser = argparse.ArgumentParser(description='Read file content.')
@@ -204,8 +218,8 @@ fix_pairs = int(args.fix_pairs)
 size = int(args.size)
 
 save_path = '/proj/mcavoy_lab/data/PD/'
-#save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/'
-#artifact_store = FileSystemArtifactStore(base_path=save_path + 'artifacts')
+save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/'
+artifact_store = FileSystemArtifactStore(base_path=save_path + 'artifacts')
 db_path = save_path + r'optimize.db'
 
 if optimize_flag == 1:
@@ -228,9 +242,11 @@ storage_name = f'sqlite:///{db_path}?study_name={study_name}'
 
 if optimize_flag == 5:
     hidden_size_range = [2, 4, 6]
-    lam_range = [0.1, 0.5, 0.9]
 
-    gamma_range = [0.1, 0.5, 0.9]
+    # we only care about lam=1 in PD
+    lam_range = [1]
+
+    gamma_range = [0.8, 0.85, 0.9, 0.95, 0.99]
     policy_lr_range = [0.01, 0.05]
     vf_lr_range = [0.01, 0.05]
     buffer_multiple_range = [2, 4, 6]
@@ -238,7 +254,7 @@ if optimize_flag == 5:
     train_vf_iters_range = [10]
     train_policy_iters_range = [10]
 
-    activation_function_range = [0, 2, 3]
+    activation_function_range = [0, 1, 2, 3]
     initialization_range = [0]
 
     # Define your custom experiment logic here
@@ -262,7 +278,8 @@ if optimize_flag == 5:
                                 study_name=study_name,
                                 storage=storage_name,
                                 load_if_exists=True)
-    study.optimize(objective)
+
+    study.optimize(objective, gc_after_trial=True)
 
 else:
     # Create a study object and specify the direction ('minimize' or 'maximize')
@@ -273,7 +290,8 @@ else:
 
 
     # Optimize the study, passing the objective function and the number of trials
-    study.optimize(objective, n_trials=10000)
+    study.optimize(objective, gc_after_trial=True)
+    study.set_metric_names([study_name])
 
 # Get the best parameters and the corresponding score
 best_params = study.best_params

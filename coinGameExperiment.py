@@ -620,7 +620,9 @@ class CoinGameExperiment():
     #                                       'blue_reward': 'mean'}).reset_index()
     means = df.groupby('round').aggregate({'total_reward': 'mean'}).reset_index()
     plt.figure(figsize=(12, 12))
-    plt.plot(means['round'], means['total_reward'], label='total_reward')#, color='green')
+
+    # divide by two to get per player reward
+    plt.plot(means['round'], means['total_reward']/2, label='total_reward')#, color='green')
     #plt.plot(means['round'], means['red_reward'], label='red_reward', color='red')
     #plt.plot(means['round'], means['blue_reward'], label='blue_reward', color='blue')
     plt.grid(True)
