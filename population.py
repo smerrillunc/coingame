@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.utils import shuffle
+from players import VPGPlayer2, VPGPlayer, PPOPlayer
 
 class Population():
   """
@@ -17,10 +18,10 @@ class Population():
   def __init__(self, player_dict, N, d):
     self.N = N
     self.d = d
-
+    print(player_dict)
     self.playerClass = player_dict['player_class']
     self.base_player_options = player_dict['base_player_options']
-    self.additional_player_options = player_dict['additional_player_options']
+    self.training_options = player_dict['training_options']
     self.models = player_dict['player_models']
     self.model_options = player_dict['player_model_params']
 
@@ -77,13 +78,21 @@ class Population():
     # array of player objects
     #players = np.array([self.playerClass(**x) for (idx, x) in players_df.iterrows()])
 
+    if self.playerClass == VPGPlayer2:
+        players = np.array([VPGPlayer2(actor_model_params=self.model_options,
+                                       training_params=self.training_options,
+                                       base_player_params={**{'player_id': x['player_id'],
+                                                              'color': x['color'],
+                                                              'population': x['population']},
+                                                           **self.base_player_options}) for (idx, x) in  players_df.iterrows()])
 
     # PPO player setting actor/critic nets
-    if len(self.model_options) == 2:
-      players = np.array([self.playerClass(**self.models[0],
-                                           **self.additional_player_options,
+    elif (self.playerClass == VPGPlayer) or (self.playerClass == PPOPlayer):
+      players = np.array([self.playerClass(actor_model = self.models['actor_model'],
+                                           critic_model = self.models['critic_model'],
                                            actor_model_params=self.model_options[0],
                                            critic_model_params = self.model_options[1],
+                                           training_params= self.training_options,
                                            base_player_params={**{'player_id': x['player_id'],
                                                                   'color': x['color'],
                                                                   'population': x['population']},
@@ -92,7 +101,7 @@ class Population():
     # DQN setting only model
     else:
       players = np.array([self.playerClass(**self.models[0],
-                                           **self.additional_player_options,
+                                           **self.training_options,
                                            model_params=self.model_options[0],
                                            base_player_params={**{'player_id': x['player_id'],
                                                                   'color': x['color'],

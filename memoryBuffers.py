@@ -24,13 +24,40 @@ class ReplayBuffer(object):
         self.ptr = (self.ptr+1) % self.max_size
         self.size = min(self.size+1, self.max_size)
 
-    def sample(self, batch_size=64):
+    def get(self, batch_size=64):
         idxs = np.random.randint(0, self.size, size=batch_size)
         return dict(obs1=torch.Tensor(self.obs1_buf[idxs]).to(self.device),
                     obs2=torch.Tensor(self.obs2_buf[idxs]).to(self.device),
                     acts=torch.Tensor(self.acts_buf[idxs]).to(self.device),
                     rews=torch.Tensor(self.rews_buf[idxs]).to(self.device),
                     done=torch.Tensor(self.done_buf[idxs]).to(self.device))
+
+
+class ReplayBuffer2(object):
+    """
+    A simple FIFO experience replay buffer for agents.
+    """
+
+    def __init__(self, obs_dim, act_dim, size, device):
+        self.obs_buf = np.zeros([size, obs_dim], dtype=np.float32)
+        self.acts_buf = np.zeros(size, dtype=np.intc)
+        self.rews_buf = np.zeros(size, dtype=np.float32)
+        self.ptr, self.size, self.max_size = 0, 0, size
+        self.device = device
+
+    def add(self, obs, act, rew):
+        self.obs_buf[self.ptr] = obs
+        self.acts_buf[self.ptr] = act
+        self.rews_buf[self.ptr] = rew
+        self.ptr = (self.ptr+1) % self.max_size
+        self.size = min(self.size+1, self.max_size)
+
+    def get(self, batch_size=64):
+        idxs = np.random.randint(0, self.size, size=batch_size)
+        return dict(obs=torch.Tensor(self.obs_buf[idxs]).to(self.device),
+                    acts=torch.Tensor(self.acts_buf[idxs]).to(self.device),
+                    rews=torch.Tensor(self.rews_buf[idxs]).to(self.device),
+                    )
 
 
 class Buffer(object):

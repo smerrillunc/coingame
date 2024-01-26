@@ -87,7 +87,8 @@ def objective(trial):
     # two states, but returned as a single scalar (0 or 1), two actions
     env_description = {'obs_dim': input_size,
                        'act_dim': actions_space,
-                       'act_limit': 1}
+                       'act_limit': 1,
+                       'gamma':0.99}
 
     env_dict = {'env': env,
                 'env_options': env_options,
@@ -98,7 +99,7 @@ def objective(trial):
     config.read(config_file_path)
     base_player_options = {'memory': 1}
 
-    vpg_models = [section_to_dict(config, 'models'), section_to_dict(config, 'models')]
+    vpg_models = section_to_dict(config, 'models')
 
     actor_config = section_to_dict(config, 'actor_config')
     critic_config = section_to_dict(config, 'critic_config')
@@ -135,7 +136,7 @@ def objective(trial):
     vpg_model_params[0]['initialization'] = initializations[initialization]
     vpg_model_params[1]['initialization'] = initializations[initialization]
 
-    vpg_player_options = {'gamma':gamma,
+    training_options = {'gamma':gamma,
                           'lam':lam,
                           'policy_lr':policy_lr,
                           'vf_lr':vf_lr,
@@ -145,7 +146,7 @@ def objective(trial):
 
     player_dict = {'player_class': VPGPlayer,
                        'base_player_options': base_player_options,
-                       'additional_player_options': vpg_player_options,
+                       'training_options': training_options,
                        'player_models': vpg_models,
                        'player_model_params': vpg_model_params}
 
@@ -155,7 +156,7 @@ def objective(trial):
                                                        device=device,
                                                        save_path=save_path)
 
-    df, _, _ = experiment.play_multi_rounds(rounds, timesteps, count)
+    df, _, _ = experiment.play_multi_rounds(rounds, count)
 
     mutual_cooperation = df[df['round']==df['round'].max()]['mutual_cooperation_flag'].sum()
     mutual_defection = df[df['round']==df['round'].max()]['mutual_defection_flag'].sum()

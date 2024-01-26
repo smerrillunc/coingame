@@ -1,9 +1,11 @@
 import numpy as np
 import os
 import torch.optim as optim
-from memoryBuffers import ReplayBuffer, Buffer
+from memoryBuffers import ReplayBuffer, ReplayBuffer2, Buffer
 import torch.nn.functional as F
 import torch
+from torch.distributions import Categorical
+from networks import CategoricalPolicy
 
 class Player():
   """
@@ -201,39 +203,27 @@ class PPOPlayer(Player):
                 actor_model_params,
                 critic_model,
                 critic_model_params,
-                steps=0,
-                gamma=0.99,
-                lam=0.97,
-                sample_size=2048,
-                buffer_multiple=10,
-                train_policy_iters=80,
-                train_vf_iters=80,
-                clip_param=0.2,
-                target_kl=0.01,
-                policy_lr=3e-4,
-                vf_lr=1e-3,
-                policy_losses=list(),
-                vf_losses=list(),
-                kls=list(),
-                ):
+                training_params):
+
       # initialize player object params
       super().__init__(**base_player_params)
 
-      self.steps = steps 
-      self.gamma = gamma
-      self.lam = lam
-      self.sample_size = sample_size
-      self.buffer_multiple = buffer_multiple
-      self.train_policy_iters = train_policy_iters
-      self.train_vf_iters = train_vf_iters
-      self.clip_param = clip_param
-      self.target_kl = target_kl
-      self.policy_lr = policy_lr
-      self.vf_lr = vf_lr
-      self.policy_losses = policy_losses
-      self.vf_losses = vf_losses
-      self.kls = kls
-      
+      # training params
+      self.steps = training_params.get('steps', 0)
+      self.gamma = training_params.get('gamma', 0.99)
+      self.lam = training_params.get('lam', 0.97)
+      self.sample_size = training_params.get('sample_size', 2048)
+      self.buffer_multiple = training_params.get('buffer_multiple', 2)
+      self.train_policy_iters = training_params.get('train_policy_iters', 10)
+      self.train_vf_iters = training_params.get('train_vf_iters', 10)
+      self.clip_param = training_params.get('clip_param', 10)
+      self.target_kl = training_params.get('target_kl', 10)
+      self.policy_lr = training_params.get('policy_lr', 3e-4)
+      self.vf_lr = training_params.get('vf_lr', 3e-4)
+      self.policy_losses = training_params.get('policy_losses', list())
+      self.vf_losses = training_params.get('vf_losses', list())
+      self.kls = training_params.get('kls', list())
+
       # Main network
       self.policy = actor_model(**actor_model_params).to(self.device)
       self.vf = critic_model(**critic_model_params).to(self.device)
@@ -370,32 +360,23 @@ class VPGPlayer(Player):
                  actor_model_params,
                  critic_model,
                  critic_model_params,
-                 steps=0,
-                 gamma=0.99,
-                 lam=0.97,
-                 sample_size=2048,
-                 buffer_multiple=10,
-                 policy_lr=3e-4,
-                 vf_lr=1e-3,
-                 train_vf_iters=80,
-                 policy_losses=list(),
-                 vf_losses=list(),
-                 kls=list(),
-                 ):
+                 training_params):
+
         # initialize player object params
         super().__init__(**base_player_params)
 
-        self.steps = steps
-        self.gamma = gamma
-        self.lam = lam
-        self.sample_size = sample_size
-        self.buffer_multiple = buffer_multiple
-        self.train_vf_iters = train_vf_iters
-        self.policy_lr = policy_lr
-        self.vf_lr = vf_lr
-        self.policy_losses = policy_losses
-        self.vf_losses = vf_losses
-        self.kls = kls
+        # training params
+        self.steps = training_params.get('steps', 0)
+        self.gamma = training_params.get('gamma', 0.99)
+        self.lam = training_params.get('lam', 0.97)
+        self.sample_size = training_params.get('sample_size', 2048)
+        self.buffer_multiple = training_params.get('buffer_multiple', 2)
+        self.train_vf_iters = training_params.get('train_vf_iters', 10)
+        self.policy_lr = training_params.get('policy_lr', 3e-4)
+        self.vf_lr = training_params.get('vf_lr', 3e-4)
+        self.policy_losses = training_params.get('policy_losses', list())
+        self.vf_losses = training_params.get('vf_losses', list())
+        self.kls = training_params.get('kls', list())
 
         # Main network
         self.policy = actor_model(**actor_model_params).to(self.device)
@@ -467,6 +448,84 @@ class VPGPlayer(Player):
                    f'{self.save_path}/{self.color}/{self.population}/VPG_Player_{self.player_id}_PN_SD.csv')
         torch.save(self.vf.state_dict(),
                    f'{self.save_path}/{self.color}/{self.population}/VPG_Player_{self.player_id}_VF_SD.csv')
+        return 1
+
+    def save_policy(self, df2, cols=['A1', 'A2', 'A3', 'A4']):
+        df = df2.copy()
+        df[cols] = df.apply(lambda row: self.policy(torch.Tensor(row))[2].detach().numpy(), axis=1,
+                            result_type='expand')
+        df[cols] = np.exp(df[cols])
+        df[cols] = df[cols] / np.sum(df[cols], axis=0)
+        df.to_csv(f'{self.save_path}/{self.color}/{self.population}/VPG_Player_{self.player_id}_PN.csv')
+        print("Player Info Saved")
+
+        return 1
+
+
+class VPGPlayer2(Player):
+    """
+    An implementation of the Vanilla Policy Gradient agent,
+    with early stopping based on approximate KL.
+    """
+
+    def __init__(self,
+                 base_player_params,
+                 actor_model_params,
+                 training_params
+                 ):
+
+        # initialize player object params
+        super().__init__(**base_player_params)
+
+        self.steps = 0
+
+        self.buffer_size = training_params.get('buffer_size', 100)
+        self.policy_lr = training_params.get('policy_lr', 0.01)
+
+        # Main network
+        self.policy = CategoricalPolicy(**actor_model_params).to(self.device)
+
+        # Create optimizers
+        self.optimizer = optim.Adam(self.policy.parameters(), lr=self.policy_lr)
+
+        # Experience buffer
+        self.buffer = ReplayBuffer2(self.obs_dim, self.act_dim, self.buffer_size, self.device)
+
+    def select_action(self, obs):
+        action, _, probs, log_pi = self.policy(torch.Tensor(obs).to(self.device))
+        return action.detach().cpu().numpy().flatten()[0]
+
+    def train_model(self):
+        batch = self.buffer.get()
+        states = batch['obs']
+        actions = batch['acts']
+        rewards = batch['rews']
+
+        total_reward = torch.sum(rewards)
+
+        # get probabilities from policy net
+        _, _, probs, _ = self.policy(states)
+
+        # get probs/log probs of each action
+        probs = Categorical(probs)
+        log_probs = probs.log_prob(actions)
+
+        # Total reward formulation
+        loss = torch.sum(-log_probs * total_reward)
+
+        # update policy weights
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+
+
+    def add_experience(self, obs, action, reward, next_state, done):
+        self.buffer.add(obs, action, reward)
+        return 1
+
+    def save_network(self):
+        torch.save(self.policy.state_dict(),
+                   f'{self.save_path}/{self.color}/{self.population}/VPG_Player_{self.player_id}_PN_SD.csv')
         return 1
 
     def save_policy(self, df2, cols=['A1', 'A2', 'A3', 'A4']):

@@ -48,6 +48,7 @@ class CoinGameExperiment():
     self.env = env_dict['env'](**env_dict['env_options'])
     self.act_dim = env_dict['env_description']['act_dim']
     self.obs_dim = env_dict['env_description']['obs_dim']
+    self.gamma = env_dict['env_description']['gamma']
 
     if not hasattr(self.env, "GRID_ACTIONS"):
       self.env.GRID_ACTIONS = {0:"C",1: "D"}
@@ -85,7 +86,8 @@ class CoinGameExperiment():
       self.save_path = None
 
     # also updare base player options with environment descriptions (state, action, etc.)
-    self.player_dict['base_player_options'].update(env_dict['env_description'])
+    self.player_dict['base_player_options']['obs_dim'] = self.obs_dim
+    self.player_dict['base_player_options']['act_dim'] = self.act_dim
 
     # create population object
     self.population = Population(player_dict=player_dict,
@@ -335,18 +337,17 @@ class CoinGameExperiment():
                                  observation_full,
                                  done=False)
 
-            # Will only acutally train when the number of experience is equal to sample size for PPO player
-            # and when the number of experience is greater than batch_size for dqn player
-            player.train_model()
-
           # set state to next state
           state = observation
+
+    # Train players at the end of the encounter
+    for idx, player in enumerate(players):
+      player.train_model()
 
     return env, players, df
 
 
-  @staticmethod
-  def play_paired_games(env, player_pairs, players, timesteps, device='cpu'):
+  def play_paired_games(self, env, player_pairs, players, device='cpu'):
     """
     Description:  This function will play all of the games in the player_pairs
     matrix and record episodic rewards
@@ -355,8 +356,6 @@ class CoinGameExperiment():
       env: environment in which players will play
       player_pair: a matrix of player ids pairings who will play agains each other
       players: a list of player objects
-      timesteps: the number of timesteps taken in each individual game
-
     Outputs:
       df: a dataframe with statistics on the game
     """
@@ -375,12 +374,16 @@ class CoinGameExperiment():
         # location, then 10 players will play in this match.
         player_pair = players[player_pairs[x, y].astype(int)]
         # play the game between these players append rewards
+
+        prob = 1 - self.gamma
+        timesteps = np.random.geometric(prob, size=1)[0]
+
         env, player_pair, tmp = CoinGameExperiment.play_game(env, player_pair, timesteps, device)
         df = pd.concat([df, tmp])
     return df
 
 
-  def play_multi_rounds(self, rounds, timesteps, count):
+  def play_multi_rounds(self, rounds, count):
     """
     Description: This function plays many roudns of CoinGame.  Reach round is a pairing of all
     N players in the population
@@ -388,7 +391,6 @@ class CoinGameExperiment():
 
     Inputs:
       rounds: number of rounds to run
-      timesteps: the number of timesteps taken in each individual game
       count: the maximum number of players in each round to play with a different population
     Outputs:
       df: a df describing the games, rewards, etc.
@@ -427,17 +429,15 @@ class CoinGameExperiment():
       #print(player_pairs)
 
       # play all the games in player_pairings and record reward
-      tmp = self.play_paired_games(self.env, player_pairs, self.population.players, timesteps, self.device)
+      tmp = self.play_paired_games(self.env, player_pairs, self.population.players, self.device)
 
       end = datetime.now()
       total_time = end-start
       time_per_game = total_time / (self.N/2)
-      time_per_timestep = time_per_game / timesteps
 
       tmp['round'] = round_idx
       tmp['round_time'] = total_time
       tmp['time_per_game'] = time_per_game
-      tmp['time_per_timestep'] = time_per_timestep
 
       df = pd.concat([df, tmp])
 
@@ -445,18 +445,18 @@ class CoinGameExperiment():
       self.policy_df.to_csv(f'policies.csv')
 
       if self.save_path:
-        self.logger.info(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
-        print(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}, Time/timestep: {time_per_timestep}')
+        self.logger.info(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}')
+        print(f'Round {round_idx}, Total Time {total_time}, Time/Game: {time_per_game}')
 
         if (round_idx+1) % 100 == 0:
-            self.make_plots(df, timesteps, count)
+            self.make_plots(df)
             df.to_csv(f'{self.save_path}/{self.save_name}.csv')
 
             self.make_policy_plots(player_idx=1)
             self.policy_df.to_csv(f'{self.save_path}/policies.csv')
 
     if self.save_path:
-      self.make_plots(df, timesteps, count)
+      self.make_plots(df)
       df.to_csv(f'{self.save_path}/{self.save_name}.csv')
 
       self.make_policy_plots(player_idx=1)
@@ -614,7 +614,7 @@ class CoinGameExperiment():
     self.logger.addHandler(file_handler)
     self.logger.addHandler(stream_handler)
 
-  def make_plots(self, df, timesteps, count):
+  def make_plots(self, df):
     #means = df.groupby('round').aggregate({'total_reward': 'mean',
     #                                       'red_reward': 'mean',
     #                                       'blue_reward': 'mean'}).reset_index()
@@ -629,7 +629,7 @@ class CoinGameExperiment():
     plt.legend(loc='best')
     plt.xlabel('Round')
     plt.ylabel('Mean Reward')
-    plt.title(f'Population Size: {self.N}, Subpopulations: {self.d}, Migration Count: {count}, timesteps/round:{timesteps}')
+    plt.title(f'Population Size: {self.N}, Subpopulations: {self.d}')
     plt.savefig(f'{self.save_path}/{self.save_name}.png')
     plt.close()
     return 1
@@ -687,7 +687,7 @@ class CoinGameExperiment():
             except:
               continue
 
-      for key, value in self.player_dict['additional_player_options'].items():
+      for key, value in self.player_dict['training_options'].items():
         try:
           file.write(f'{key}:{value}\n')
         except:
