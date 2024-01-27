@@ -83,12 +83,13 @@ def objective(trial):
 
     env = MatrixGame
     env_options = {'rewards': rewards}
+    gamma = trial.suggest_float('gamma', 0.25, 0.99)
 
     # two states, but returned as a single scalar (0 or 1), two actions
     env_description = {'obs_dim': input_size,
                        'act_dim': actions_space,
                        'act_limit': 1,
-                       'gamma':0.99}
+                       'gamma':gamma}
 
     env_dict = {'env': env,
                 'env_options': env_options,
@@ -118,7 +119,6 @@ def objective(trial):
 
     # Define your custom experiment logic here
     lam = trial.suggest_float('lam', 0.25, 0.99)
-    gamma = trial.suggest_float('gamma', 0.25, 0.99)
     policy_lr = trial.suggest_float('policy_lr', 0.001, 0.1)
     vf_lr = trial.suggest_float('vf_lr', 0.001, 0.05)
     buffer_multiple = trial.suggest_int('buffer_multiple', 1, 10)

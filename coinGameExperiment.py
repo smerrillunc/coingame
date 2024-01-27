@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 
 from population import Population
-from players import PPOPlayer, DQNPlayer
+from players import PPOPlayer, VPGPlayer, DQNPlayer
 
 import itertools
 
@@ -663,8 +663,9 @@ class CoinGameExperiment():
       file.write(f'grid:({self.n}, {self.n})\n')
       file.write(f'n_coins:{self.n_coins}\n')
       file.write(f'payoffs:{self.coin_payoffs}\n')
+      player_class = self.player_dict.get('player_class', None)
 
-      if self.player_dict['player_class'] == PPOPlayer:
+      if (player_class == PPOPlayer) | (player_class == VPGPlayer):
         file.write(f'player_class: PPOPlayer\n')
         for idx, model_params in enumerate(self.player_dict['player_model_params']):
           if idx == 0:
@@ -677,7 +678,7 @@ class CoinGameExperiment():
             except:
               continue
 
-      else:
+      elif player_class == DQNPlayer:
         file.write(f'player_class: DQNPlayer\n')
         file.write(f'\nVALUE NETWORK\n')
         for model_params in self.player_dict['player_model_params']:

@@ -79,6 +79,7 @@ class Population():
     #players = np.array([self.playerClass(**x) for (idx, x) in players_df.iterrows()])
 
     if self.playerClass == VPGPlayer2:
+        print(self.model_options)
         players = np.array([VPGPlayer2(actor_model_params=self.model_options,
                                        training_params=self.training_options,
                                        base_player_params={**{'player_id': x['player_id'],

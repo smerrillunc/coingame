@@ -1,8 +1,8 @@
 import matplotlib
 import matplotlib.pyplot as plt
-import torch.nn.functional as F
 
 import torch
+import torch.nn.functional as F
 
 # set up matplotlib
 is_ipython = 'inline' in matplotlib.get_backend()
@@ -13,7 +13,7 @@ plt.ion()
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 from evoenv.envs.enumerated_stochastic_game import EnumeratedStochasticGame, MatrixGame
-from players import PPOPlayer, DQNPlayer,  VPGPlayer
+from players import VPGPlayer2
 import coinGameExperiment
 
 from cg_utils import section_to_dict, prisoner_dilemna_payoff
@@ -48,11 +48,12 @@ def compute_tft(df):
 
     total_tft = count1 + count2
     return total_tft
+
 # Define the objective function to optimize
 def objective(trial):
 
     # make parameters
-    rounds = 2
+    rounds = 1000
     count = 0
     timesteps = 100
 
@@ -61,7 +62,7 @@ def objective(trial):
 
     population_dict = {'N': N,
                        'd': d,
-                       'fix_pairs':fix_pairs}
+                       'fix_pairs': fix_pairs}
 
     # environment settings
     state_space = 1
@@ -94,64 +95,43 @@ def objective(trial):
                 'env_options': env_options,
                 'env_description': env_description}
 
-    config_file_path = 'configs/pd_ppo.ini'
+    config_file_path = 'configs/pd_vpg2.ini'
     config = configparser.ConfigParser()
     config.read(config_file_path)
     base_player_options = {'memory': 1}
-    ppo_models = section_to_dict(config, 'models')
 
-    actor_config = section_to_dict(config, 'actor_config')
-    critic_config = section_to_dict(config, 'critic_config')
+    vpg_models = section_to_dict(config, 'models')
+    model_config = section_to_dict(config, 'model_config')
 
     hidden_size_multiple = trial.suggest_int('hidden_size_multiple', 1, 10)
 
-    actor_config['input_size'] = input_size
-    actor_config['hidden_sizes'] = (hidden_size_multiple * input_size,)
-    actor_config['output_size'] = int(actions_space)
-
-    critic_config['input_size'] = input_size
-    critic_config['output_size'] = int(1)
-    critic_config['hidden_sizes'] = (hidden_size_multiple * input_size,)
-    ppo_model_params = [actor_config, critic_config]
+    model_config['input_size'] = input_size
+    model_config['hidden_sizes'] = (hidden_size_multiple * input_size,)
+    model_config['output_size'] = int(actions_space)
 
     # Define your custom experiment logic here
-    lam = trial.suggest_float('lam', 0.25, 0.99)
-    policy_lr = trial.suggest_float('policy_lr', 0.001, 0.05)
-    vf_lr = trial.suggest_float('vf_lr', 0.001, 0.05)
-    clip_param = trial.suggest_float('clip_param', 0.05, 0.95)
-    target_kl = trial.suggest_float('target_kl', 0.01, 0.2)
-
+    policy_lr = trial.suggest_float('policy_lr', 0.001, 0.1)
     buffer_multiple = trial.suggest_int('buffer_multiple', 1, 10)
-    train_vf_iters = trial.suggest_int('train_vf_iters', 1, 19, 2)
-    train_policy_iters = trial.suggest_int('train_policy_iters', 1, 20, 2)
+
     activation_function = trial.suggest_int('activation_function', 0, 4)
     initialization = trial.suggest_int('initialization', 0, 2)
 
     activation_funcs = [F.relu, F.leaky_relu, F.elu, F.tanh, F.sigmoid]
     initializations = ['uniform', 'normal', 'dirichlet']
 
-    #ppo_model_params
-    ppo_model_params[0]['activation'] = activation_funcs[activation_function]
-    ppo_model_params[1]['activation'] = activation_funcs[activation_function]
-    ppo_model_params[0]['initialization'] = initializations[initialization]
-    ppo_model_params[1]['initialization'] = initializations[initialization]
+    #vpg_model_params
+    model_config['activation'] = activation_funcs[activation_function]
+    model_config['initialization'] = initializations[initialization]
 
-    training_options = {'gamma':gamma,
-                          'lam':lam,
-                          'policy_lr':policy_lr,
-                          'vf_lr':vf_lr,
-                          'clip_param':clip_param,
-                          'target_kl':target_kl,
-                          'train_vf_iters':train_vf_iters,
-                          'train_policy_iters':train_policy_iters,
-                          'sample_size':timesteps,
-                          'buffer_multiple':buffer_multiple}
 
-    player_dict = {'player_class': PPOPlayer,
-                       'base_player_options': base_player_options,
-                       'training_options': training_options,
-                       'player_models': ppo_models,
-                       'player_model_params': ppo_model_params}
+    training_options = {'policy_lr':policy_lr,
+                        'buffer_multiple':buffer_multiple}
+
+    player_dict = {'player_class': VPGPlayer2,
+                   'base_player_options': base_player_options,
+                   'training_options': training_options,
+                   'player_models': vpg_models,
+                   'player_model_params': model_config}
 
     experiment = coinGameExperiment.CoinGameExperiment(env_dict=env_dict,
                                                        population_dict=population_dict,
@@ -219,20 +199,21 @@ fix_pairs = int(args.fix_pairs)
 size = int(args.size)
 
 save_path = '/proj/mcavoy_lab/data/PD/'
-save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/PPO/'
+save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/VPG/'
 artifact_store = FileSystemArtifactStore(base_path=save_path + 'artifacts')
+
 db_path = save_path + r'optimize.db'
 
 if optimize_flag == 1:
-    study_name = 'ppo_mutual_cooperation'
+    study_name = 'vpg_mutual_cooperation'
 elif optimize_flag == 2:
-    study_name = 'ppo_mutual_defection'
+    study_name = 'vpg_mutual_defection'
 elif optimize_flag == 3:
-    study_name = 'ppo_exploitations'
+    study_name = 'vpg_exploitations'
 elif optimize_flag == 4:
-    study_name = 'ppo_TFT'
+    study_name = 'vpg_TFT'
 elif optimize_flag == 5:
-    study_name = 'ppo_grid_search'
+    study_name = 'vpg_grid_search'
 
 if fix_pairs == 0:
     study_name = study_name + '_population'
@@ -243,36 +224,17 @@ storage_name = f'sqlite:///{db_path}?study_name={study_name}'
 
 if optimize_flag == 5:
     hidden_size_range = [2, 4, 6]
-
-    # we only care about lam=1 in PD
-    lam_range = [1]
-
-    gamma_range = [0.8, 0.85, 0.9, 0.95, 0.99]
+    gamma_range = [0.9, 0.95, 0.975, 0.999]
     policy_lr_range = [0.01, 0.05]
-    vf_lr_range = [0.01, 0.05]
     buffer_multiple_range = [2, 4, 6]
-
-    train_vf_iters_range = [10]
-    train_policy_iters_range = [10]
-
     activation_function_range = [0, 1, 2, 3]
-    initialization_range = [0]
-
-    # Define your custom experiment logic here
-    clip_param_range = [0.1, 0.5, 0.9]
-    target_kl_range = [0.01, 0.1, 0.2]
+    initialization_range = [0, 1, 2]
 
     search_space = {"hidden_size_multiple": hidden_size_range,
-                    "lam": lam_range,
                     "gamma":gamma_range,
                     "policy_lr":policy_lr_range,
-                    "vf_lr":vf_lr_range,
                     "buffer_multiple":buffer_multiple_range,
-                    "train_vf_iters":train_vf_iters_range,
-                    "train_policy_iters":train_policy_iters_range,
                     "activation_function":activation_function_range,
-                    "clip_param":clip_param_range,
-                    "target_kl":target_kl_range,
                     "initialization":initialization_range}
 
     study = optuna.create_study(sampler=optuna.samplers.GridSampler(search_space),
@@ -282,17 +244,15 @@ if optimize_flag == 5:
 
     study.optimize(objective, gc_after_trial=True)
 
-else:
+else :
     # Create a study object and specify the direction ('minimize' or 'maximize')
     study = optuna.create_study(direction='maximize',
                                 study_name=study_name,
                                 storage=storage_name,
                                 load_if_exists=True)
 
-
     # Optimize the study, passing the objective function and the number of trials
     study.optimize(objective, gc_after_trial=True)
-    study.set_metric_names([study_name])
 
 # Get the best parameters and the corresponding score
 best_params = study.best_params
