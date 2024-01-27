@@ -480,6 +480,7 @@ class VPGPlayer2(Player):
         self.steps = 0
 
         self.buffer_size = training_params.get('buffer_size', 100)
+        self.batch_size = training_params.get('batch_size', 64)
         self.policy_lr = training_params.get('policy_lr', 0.01)
 
         # Main network
@@ -496,7 +497,7 @@ class VPGPlayer2(Player):
         return action.detach().cpu().numpy().flatten()[0]
 
     def train_model(self):
-        batch = self.buffer.get()
+        batch = self.buffer.get(batch_size=self.batch_size)
         states = batch['obs']
         actions = batch['acts']
         rewards = batch['rews']
