@@ -1,6 +1,5 @@
 import matplotlib
 import matplotlib.pyplot as plt
-from memory_profiler import profile
 
 import torch
 import torch.nn.functional as F
@@ -51,7 +50,6 @@ def compute_tft(df):
     return total_tft
 
 # Define the objective function to optimize
-@profile
 def objective(trial):
     # make parameters
     rounds = 100
@@ -63,7 +61,8 @@ def objective(trial):
 
     population_dict = {'N': N,
                        'd': d,
-                       'fix_pairs': fix_pairs}
+                       'fix_pairs': fix_pairs,
+                       'single_interaction':clear}
 
     # environment settings
     state_space = 1
@@ -236,19 +235,15 @@ if optimize_flag == 5:
     activation_function_range = [0, 1, 2, 3]
     initialization_range = [0, 1, 2]
 
-    if clear == 0:
-        search_space = {"hidden_size_multiple": hidden_size_range,
-                        "gamma":gamma_range,
-                        "policy_lr":policy_lr_range,
-                        "buffer_multiple":buffer_multiple_range,
-                        "activation_function":activation_function_range,
-                        "initialization":initialization_range}
-    else:
-        search_space = {"hidden_size_multiple": hidden_size_range,
-                        "gamma":gamma_range,
-                        "policy_lr":policy_lr_range,
-                        "activation_function":activation_function_range,
-                        "initialization":initialization_range}
+    if clear == 1:
+        buffer_multiple_range = [4]
+
+    search_space = {"hidden_size_multiple": hidden_size_range,
+                    "gamma":gamma_range,
+                    "policy_lr":policy_lr_range,
+                    "buffer_multiple":buffer_multiple_range,
+                    "activation_function":activation_function_range,
+                    "initialization":initialization_range}
 
     study = optuna.create_study(sampler=optuna.samplers.GridSampler(search_space),
                                 study_name=study_name,
