@@ -341,11 +341,14 @@ class CoinGameExperiment():
 
     # Train players at the end of the encounter
     for idx, player in enumerate(players):
-      player.train_model()
-
       # if we want to only train on a single interaction clear player buffers
       if self.single_interaction:
+        player.train_model(get_all=1)
         player.buffer.clear()
+      else:
+        player.train_model()
+
+
 
     return env, players, df
 

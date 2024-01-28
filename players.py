@@ -479,7 +479,7 @@ class VPGPlayer2(Player):
 
         self.steps = 0
 
-        self.buffer_size = training_params.get('buffer_size', 100)
+        self.buffer_size = training_params.get('buffer_size', 300)
         self.batch_size = training_params.get('batch_size', 64)
         self.policy_lr = training_params.get('policy_lr', 0.01)
 
@@ -496,8 +496,11 @@ class VPGPlayer2(Player):
         action, _, probs, log_pi = self.policy(torch.Tensor(obs).to(self.device))
         return action.detach().cpu().numpy().flatten()[0]
 
-    def train_model(self):
-        batch = self.buffer.get(batch_size=self.batch_size)
+    def train_model(self, get_all=0):
+        if get_all == 1:
+            batch = self.buffer.get_all()
+        else:
+            batch = self.buffer.get(batch_size=self.batch_size)
         states = batch['obs']
         actions = batch['acts']
         rewards = batch['rews']

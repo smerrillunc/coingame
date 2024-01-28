@@ -71,6 +71,11 @@ class ReplayBuffer2(object):
                     rews=torch.Tensor(self.rews_buf[idxs]).to(self.device),
                     )
 
+    def get_all(self):
+        return dict(obs=torch.Tensor(self.obs_buf[:self.size]).to(self.device),
+                    acts=torch.Tensor(self.acts_buf[:self.size]).to(self.device),
+                    rews=torch.Tensor(self.rews_buf[:self.size]).to(self.device),
+                    )
 
 class Buffer(object):
     """

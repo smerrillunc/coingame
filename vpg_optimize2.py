@@ -52,7 +52,7 @@ def compute_tft(df):
 # Define the objective function to optimize
 def objective(trial):
     # make parameters
-    rounds = 100
+    rounds = 1000
     count = 0
     timesteps = 100
 
@@ -84,7 +84,6 @@ def objective(trial):
     env = MatrixGame
     env_options = {'rewards': rewards}
     gamma = trial.suggest_float('gamma', 0.25, 0.99)
-
     # two states, but returned as a single scalar (0 or 1), two actions
     env_description = {'obs_dim': input_size,
                        'act_dim': actions_space,
@@ -201,7 +200,7 @@ size = int(args.size)
 clear = int(args.clear)
 
 save_path = '/proj/mcavoy_lab/data/PD/'
-save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/VPG/'
+#save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/VPG/'
 artifact_store = FileSystemArtifactStore(base_path=save_path + 'artifacts')
 
 db_path = save_path + r'optimize.db'
