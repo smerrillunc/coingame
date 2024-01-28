@@ -39,6 +39,12 @@ class ReplayBuffer2(object):
     """
 
     def __init__(self, obs_dim, act_dim, size, device):
+        self.obs_dim = obs_dim
+        self.act_dim = act_dim
+        self.max_size = size
+        self.device = device
+        self.clear()
+
         self.obs_buf = np.zeros([size, obs_dim], dtype=np.float32)
         self.acts_buf = np.zeros(size, dtype=np.intc)
         self.rews_buf = np.zeros(size, dtype=np.float32)
@@ -51,6 +57,12 @@ class ReplayBuffer2(object):
         self.rews_buf[self.ptr] = rew
         self.ptr = (self.ptr+1) % self.max_size
         self.size = min(self.size+1, self.max_size)
+
+    def clear(self):
+        self.obs_buf = np.zeros([self.max_size, self.obs_dim], dtype=np.float32)
+        self.acts_buf = np.zeros(self.max_size, dtype=np.intc)
+        self.rews_buf = np.zeros(self.max_size, dtype=np.float32)
+        self.ptr, self.size = 0, 0
 
     def get(self, batch_size=64):
         idxs = np.random.randint(0, self.size, size=batch_size)

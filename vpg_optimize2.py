@@ -1,5 +1,6 @@
 import matplotlib
 import matplotlib.pyplot as plt
+from memory_profiler import profile
 
 import torch
 import torch.nn.functional as F
@@ -50,10 +51,10 @@ def compute_tft(df):
     return total_tft
 
 # Define the objective function to optimize
+@profile
 def objective(trial):
-
     # make parameters
-    rounds = 1000
+    rounds = 100
     count = 0
     timesteps = 100
 
@@ -192,11 +193,13 @@ parser = argparse.ArgumentParser(description='Read file content.')
 parser.add_argument("-o", "--optimize", default=1, type=int, help='optimize flag; 1 = mutual cooperation, 2 = mutual defection, 3 = exploitations, 4 = TFT')
 parser.add_argument("-f", "--fix_pairs", default=0, type=int, help='0: varying opponents; 1: same opponents')
 parser.add_argument("-s", "--size", default=6, type=int, help='population size')
+parser.add_argument("-c", "--clear", default=0, type=int, help='clear the buffer after each interaction')
 
 args = parser.parse_args()
 optimize_flag = int(args.optimize)
 fix_pairs = int(args.fix_pairs)
 size = int(args.size)
+clear = int(args.clear)
 
 save_path = '/proj/mcavoy_lab/data/PD/'
 save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/VPG/'
@@ -218,6 +221,9 @@ elif optimize_flag == 5:
 if fix_pairs == 0:
     study_name = study_name + '_population'
 
+if clear == 1:
+    study_name = study_name + '_clear'
+
 conn = sqlite3.connect(db_path)
 # Create an Optuna study with SQLite storage
 storage_name = f'sqlite:///{db_path}?study_name={study_name}'
@@ -230,12 +236,19 @@ if optimize_flag == 5:
     activation_function_range = [0, 1, 2, 3]
     initialization_range = [0, 1, 2]
 
-    search_space = {"hidden_size_multiple": hidden_size_range,
-                    "gamma":gamma_range,
-                    "policy_lr":policy_lr_range,
-                    "buffer_multiple":buffer_multiple_range,
-                    "activation_function":activation_function_range,
-                    "initialization":initialization_range}
+    if clear == 0:
+        search_space = {"hidden_size_multiple": hidden_size_range,
+                        "gamma":gamma_range,
+                        "policy_lr":policy_lr_range,
+                        "buffer_multiple":buffer_multiple_range,
+                        "activation_function":activation_function_range,
+                        "initialization":initialization_range}
+    else:
+        search_space = {"hidden_size_multiple": hidden_size_range,
+                        "gamma":gamma_range,
+                        "policy_lr":policy_lr_range,
+                        "activation_function":activation_function_range,
+                        "initialization":initialization_range}
 
     study = optuna.create_study(sampler=optuna.samplers.GridSampler(search_space),
                                 study_name=study_name,

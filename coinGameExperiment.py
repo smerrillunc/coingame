@@ -61,6 +61,7 @@ class CoinGameExperiment():
     self.N = population_dict["N"]
     self.d = population_dict["d"]
     self.fix_pairings = population_dict.get('fix_pairs', 0)
+    self.single_interaction = population_dict.get('single_interaction', 0)
 
     # add the save path to the players
     self.device = device
@@ -167,8 +168,7 @@ class CoinGameExperiment():
   ###############################
   ###### GAME PLAY METHODS ######
   ###############################
-  @staticmethod
-  def play_game(env, players, timesteps, device='cpu'):
+  def play_game(self, env, players, timesteps, device='cpu'):
     """
     Description:  This function will play a single game between players in array
     some starting state.  The resulting networks of the players will be updated in place.
@@ -187,7 +187,6 @@ class CoinGameExperiment():
     # does this even matter?
     # if players[0].color == 'r':
     #  players[0], players[1] = players[1], players[0]
-
     df = pd.DataFrame()
 
     # Environment should be confiugred to the starting state for which we want to
@@ -344,6 +343,10 @@ class CoinGameExperiment():
     for idx, player in enumerate(players):
       player.train_model()
 
+      # if we want to only train on a single interaction clear player buffers
+      if self.single_interaction:
+        player.buffer.clear()
+
     return env, players, df
 
 
@@ -378,7 +381,7 @@ class CoinGameExperiment():
         prob = 1 - self.gamma
         timesteps = np.random.geometric(prob, size=1)[0]
 
-        env, player_pair, tmp = CoinGameExperiment.play_game(env, player_pair, timesteps, device)
+        env, player_pair, tmp = self.play_game(env, player_pair, timesteps, device)
         df = pd.concat([df, tmp])
     return df
 
