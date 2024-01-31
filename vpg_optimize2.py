@@ -114,6 +114,7 @@ def objective(trial):
 
     activation_function = trial.suggest_int('activation_function', 0, 4)
     initialization = trial.suggest_int('initialization', 0, 2)
+    policy_target = trial.suggest_int('policy_target', 0, 2)
 
     activation_funcs = [F.relu, F.leaky_relu, F.elu, F.tanh, F.sigmoid]
     initializations = ['uniform', 'normal', 'dirichlet']
@@ -124,7 +125,8 @@ def objective(trial):
 
 
     training_options = {'policy_lr':policy_lr,
-                        'buffer_multiple':buffer_multiple}
+                        'buffer_multiple':buffer_multiple,
+                        'policy_target':policy_target}
 
     player_dict = {'player_class': VPGPlayer2,
                    'base_player_options': base_player_options,
@@ -192,12 +194,14 @@ parser.add_argument("-o", "--optimize", default=1, type=int, help='optimize flag
 parser.add_argument("-f", "--fix_pairs", default=0, type=int, help='0: varying opponents; 1: same opponents')
 parser.add_argument("-s", "--size", default=6, type=int, help='population size')
 parser.add_argument("-c", "--clear", default=0, type=int, help='clear the buffer after each interaction')
+parser.add_argument("-p", "--policy_target", default=0, type=int, help='adjust the policy target from total reward to (total_reward - mean(reward))')
 
 args = parser.parse_args()
 optimize_flag = int(args.optimize)
 fix_pairs = int(args.fix_pairs)
 size = int(args.size)
 clear = int(args.clear)
+policy_target = int(args.policy_target)
 
 save_path = '/proj/mcavoy_lab/data/PD/'
 #save_path='/Users/scottmerrill/Documents/UNC/Research/coingame/data/VPG/'
@@ -222,6 +226,9 @@ if fix_pairs == 0:
 if clear == 1:
     study_name = study_name + '_clear'
 
+if policy_target == 1:
+    study_name = study_name + '_policy_target'
+
 conn = sqlite3.connect(db_path)
 # Create an Optuna study with SQLite storage
 storage_name = f'sqlite:///{db_path}?study_name={study_name}'
@@ -233,6 +240,7 @@ if optimize_flag == 5:
     buffer_multiple_range = [2, 4, 6]
     activation_function_range = [0, 1, 2, 3]
     initialization_range = [0, 1, 2]
+    policy_target_range = [1]
 
     if clear == 1:
         buffer_multiple_range = [4]
@@ -242,7 +250,9 @@ if optimize_flag == 5:
                     "policy_lr":policy_lr_range,
                     "buffer_multiple":buffer_multiple_range,
                     "activation_function":activation_function_range,
-                    "initialization":initialization_range}
+                    "initialization":initialization_range,
+                    "policy_target": policy_target_range
+                    }
 
     study = optuna.create_study(sampler=optuna.samplers.GridSampler(search_space),
                                 study_name=study_name,

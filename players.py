@@ -482,6 +482,7 @@ class VPGPlayer2(Player):
         self.buffer_size = training_params.get('buffer_size', 300)
         self.batch_size = training_params.get('batch_size', 64)
         self.policy_lr = training_params.get('policy_lr', 0.01)
+        self.policy_target = training_params.get('policy_target', 0)
 
         # Main network
         self.policy = CategoricalPolicy(**actor_model_params).to(self.device)
@@ -506,6 +507,7 @@ class VPGPlayer2(Player):
         rewards = batch['rews']
 
         total_reward = torch.sum(rewards)
+        policy_target = total_reward - self.policy_target*(len(rewards))
 
         # get probabilities from policy net
         _, _, probs, _ = self.policy(states)
@@ -515,7 +517,7 @@ class VPGPlayer2(Player):
         log_probs = probs.log_prob(actions)
 
         # Total reward formulation
-        loss = torch.sum(-log_probs * total_reward)
+        loss = torch.sum(-log_probs * policy_target)
 
         # update policy weights
         self.optimizer.zero_grad()
