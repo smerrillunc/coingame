@@ -115,6 +115,7 @@ def objective(trial):
     activation_function = trial.suggest_int('activation_function', 0, 4)
     initialization = trial.suggest_int('initialization', 0, 2)
     policy_target = trial.suggest_int('policy_target', 0, 2)
+    temperature = trial.suggest_float('temperature', 0.0, 1.0)
 
     activation_funcs = [F.relu, F.leaky_relu, F.elu, F.tanh, F.sigmoid]
     initializations = ['uniform', 'normal', 'dirichlet']
@@ -122,7 +123,7 @@ def objective(trial):
     #vpg_model_params
     model_config['activation'] = activation_funcs[activation_function]
     model_config['initialization'] = initializations[initialization]
-
+    model_config['temperature'] = temperature
 
     training_options = {'policy_lr':policy_lr,
                         'buffer_multiple':buffer_multiple,
@@ -236,11 +237,12 @@ storage_name = f'sqlite:///{db_path}?study_name={study_name}'
 if optimize_flag == 5:
     hidden_size_range = [2, 4, 6]
     gamma_range = [0.9, 0.95, 0.975, 0.999]
-    policy_lr_range = [0.01, 0.05]
+    policy_lr_range = [0.01, 0.025]
     buffer_multiple_range = [2, 4, 6]
     activation_function_range = [0, 1, 2, 3]
-    initialization_range = [0, 1, 2]
+    initialization_range = [0]
     policy_target_range = [1]
+    temperature_range = [0.1, 0.25, 0.5, 0.75, 0.9, 1]
 
     if clear == 1:
         buffer_multiple_range = [4]
@@ -251,7 +253,9 @@ if optimize_flag == 5:
                     "buffer_multiple":buffer_multiple_range,
                     "activation_function":activation_function_range,
                     "initialization":initialization_range,
-                    "policy_target": policy_target_range
+                    "policy_target": policy_target_range,
+                    "temperature": temperature_range
+
                     }
 
     study = optuna.create_study(sampler=optuna.samplers.GridSampler(search_space),

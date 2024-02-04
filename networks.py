@@ -85,7 +85,8 @@ class CategoricalPolicy(MLP):
                  output_size,
                  hidden_sizes=(64,),
                  activation=torch.relu,
-                 initialization='uniform'
+                 initialization='uniform',
+                 temperature=0.1
     ):
         super(CategoricalPolicy, self).__init__(
             input_size=input_size,
@@ -93,10 +94,11 @@ class CategoricalPolicy(MLP):
             hidden_sizes=hidden_sizes,
             activation=activation,
             initialization=initialization)
+        self.temperature = temperature
 
     def forward(self, x, pi=None, use_pi=True):
         x = super(CategoricalPolicy, self).forward(x)
-        pi = F.softmax(x, dim=-1)
+        pi = F.softmax(x/self.temperature, dim=-1)
 
         dist = torch.distributions.categorical.Categorical(pi)
         action = dist.sample()
